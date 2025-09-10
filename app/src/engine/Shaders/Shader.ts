@@ -31,14 +31,14 @@ class Shader {
 
     protected addSourceAttribute (gl:WebGL2RenderingContext, shaderProgram:WebGLProgram, atr:string):void {
 
-        this._source_atr[`${atr}`] = { name:`${atr}`, location:():number => { return gl.getAttribLocation(shaderProgram, atr); } };
+        this._source_atr[`${atr}`] = { name:`${atr}`, location:():number => { return gl.getAttribLocation(shaderProgram, atr); } }; //getting attribute location can only be done when loaded into shader program
     }
 
-    get instance():WebGLShader {
+    public get instance():WebGLShader {
         return this.shader;
     }
 
-    get source_atr():source_atr_type  {
+    public get source_atr():source_atr_type  {
         return this._source_atr;
     }
 

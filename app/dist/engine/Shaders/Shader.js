@@ -13,7 +13,7 @@ class Shader {
         gl.compileShader(this.shader);
     }
     addSourceAttribute(gl, shaderProgram, atr) {
-        this._source_atr[`${atr}`] = { name: `${atr}`, location: () => { return gl.getAttribLocation(shaderProgram, atr); } };
+        this._source_atr[`${atr}`] = { name: `${atr}`, location: () => { return gl.getAttribLocation(shaderProgram, atr); } }; //getting attribute location can only be done when loaded into shader program
     }
     get instance() {
         return this.shader;
