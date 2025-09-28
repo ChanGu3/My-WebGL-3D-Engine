@@ -1,19 +1,21 @@
+import Engine3D from "./Engine3D.js";
+
 class Buffers {
 
     private vertex_buffer:WebGLBuffer;
 
-    constructor(gl: WebGL2RenderingContext) {
-        this.vertex_buffer = gl.createBuffer();
+    constructor() {
+        this.vertex_buffer = Engine3D.inst.GL.createBuffer();
     }
 
-    public bindVertexBuffer(gl: WebGL2RenderingContext)
+    public bindVertexBuffer()
     {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_buffer);
+        Engine3D.inst.GL.bindBuffer(Engine3D.inst.GL.ARRAY_BUFFER, this.vertex_buffer);
     }
 
-    public unbindVertexBuffer(gl: WebGL2RenderingContext)
+    public unbindVertexBuffer()
     {
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        Engine3D.inst.GL.bindBuffer(Engine3D.inst.GL.ARRAY_BUFFER, null);
     }
 
 }

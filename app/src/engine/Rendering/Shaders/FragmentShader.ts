@@ -1,4 +1,5 @@
 import Shader from "./Shader.js";
+import Engine3D from "../../Engine3D.js";
 
 class FragmentShader extends  Shader{
     protected static readonly tempSource:string =
@@ -13,8 +14,8 @@ class FragmentShader extends  Shader{
             f_color = v_color;
          }`;
 
-    constructor(gl:WebGL2RenderingContext, shaderProgram:WebGLProgram) {
-        super(gl, gl.FRAGMENT_SHADER, FragmentShader.tempSource);
+    constructor(shaderProgram:WebGLProgram) {
+        super(Engine3D.inst.GL.FRAGMENT_SHADER, FragmentShader.tempSource);
     }
 }
 

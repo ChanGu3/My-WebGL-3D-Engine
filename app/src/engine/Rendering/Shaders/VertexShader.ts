@@ -1,4 +1,5 @@
 import Shader from "./Shader.js";
+import Engine3D from "../../Engine3D.js";
 
 class VertexShader extends Shader {
 
@@ -16,10 +17,10 @@ class VertexShader extends Shader {
             v_color = color;
          }`;
 
-    constructor(gl:WebGL2RenderingContext, shaderProgram:WebGLProgram) {
-        super(gl, gl.VERTEX_SHADER, VertexShader.tempSource);
-        super.addSourceAttribute(gl, shaderProgram, "coordinates");
-        super.addSourceAttribute(gl, shaderProgram, "color");
+    constructor(shaderProgram:WebGLProgram) {
+        super(Engine3D.inst.GL.VERTEX_SHADER, VertexShader.tempSource);
+        super.addSourceAttribute(shaderProgram, "coordinates");
+        super.addSourceAttribute(shaderProgram, "color");
     }
 }
 

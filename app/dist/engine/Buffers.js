@@ -1,12 +1,13 @@
+import Engine3D from "./Engine3D.js";
 class Buffers {
-    constructor(gl) {
-        this.vertex_buffer = gl.createBuffer();
+    constructor() {
+        this.vertex_buffer = Engine3D.inst.GL.createBuffer();
     }
-    bindVertexBuffer(gl) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.vertex_buffer);
+    bindVertexBuffer() {
+        Engine3D.inst.GL.bindBuffer(Engine3D.inst.GL.ARRAY_BUFFER, this.vertex_buffer);
     }
-    unbindVertexBuffer(gl) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    unbindVertexBuffer() {
+        Engine3D.inst.GL.bindBuffer(Engine3D.inst.GL.ARRAY_BUFFER, null);
     }
 }
 export default Buffers;
