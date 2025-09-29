@@ -51,6 +51,9 @@ class Mat4 {
                 this.data = data;
         }
     }
+    getData() {
+        return this.data;
+    }
     /**
      * returns the identity matrix
      */

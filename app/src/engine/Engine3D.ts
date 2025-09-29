@@ -6,7 +6,6 @@ class Engine3D {
 
     private gl: WebGL2RenderingContext;
 
-    private buffers: Buffers;
     private renderer: Renderer;
 
     constructor(gl: WebGL2RenderingContext) {
@@ -15,8 +14,8 @@ class Engine3D {
         }
         Engine3D.instance = this;
         this.gl = gl;
-        this.buffers = new Buffers();
         this.renderer = new Renderer();
+        this.renderer.render();
     }
 
     //
@@ -34,17 +33,6 @@ class Engine3D {
     //
     public get GL(): WebGL2RenderingContext {
         return this.gl;
-    }
-
-
-    //
-    // vec3 normalized device coordinates, vec4 color
-    //
-    public DrawOnce(vert_s:number[]):void
-    {
-        this.buffers.bindVertexBuffer();
-        this.renderer.DrawOnce(vert_s);
-        this.buffers.unbindVertexBuffer();
     }
 }
 

@@ -7,8 +7,8 @@ class Engine3D {
         }
         Engine3D.instance = this;
         this.gl = gl;
-        this.buffers = new Buffers();
         this.renderer = new Renderer();
+        this.renderer.render();
     }
     //
     // Gets the instance of the current running engine
@@ -24,14 +24,6 @@ class Engine3D {
     //
     get GL() {
         return this.gl;
-    }
-    //
-    // vec3 normalized device coordinates, vec4 color
-    //
-    DrawOnce(vert_s) {
-        this.buffers.bindVertexBuffer();
-        this.renderer.DrawOnce(vert_s);
-        this.buffers.unbindVertexBuffer();
     }
 }
 export default Engine3D;

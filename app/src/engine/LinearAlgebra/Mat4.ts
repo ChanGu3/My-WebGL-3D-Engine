@@ -18,6 +18,7 @@ export enum UniqueMatrix {
 ROTATIONS ARE RIGHT-HANDED: Positive turns are Counter-Clockwise
  */
 class Mat4 {
+
     private data: Matrix4x4;
 
     constructor( data?: Matrix4x4|UniqueMatrix|null  ) {
@@ -60,6 +61,10 @@ class Mat4 {
                 default:
                     this.data = data as Matrix4x4;
             }
+    }
+
+    public getData(): Matrix4x4 {
+        return this.data;
     }
 
     /**
