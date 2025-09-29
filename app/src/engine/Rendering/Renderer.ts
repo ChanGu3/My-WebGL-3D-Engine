@@ -1,7 +1,7 @@
 import Engine3D from "../Engine3D.js";
 import ShaderProgram from "./Shaders/ShaderProgram.js";
 import mat4, {UniqueMatrix} from "../LinearAlgebra/Mat4.js";
-import Buffers from "../Buffers.js";
+import Buffers from "./Shaders/Buffers.js";
 import Time from "../Time.js";
 
 //

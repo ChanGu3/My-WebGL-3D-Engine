@@ -1,4 +1,3 @@
-import Buffers from "./Buffers.js";
 import  Renderer from "./Rendering/Renderer.js";
 
 class Engine3D {

@@ -1,6 +1,12 @@
-- package.json has a dev script to track file changes upon save to compile the typescript and css files.
-- I have multiple javascript files so it needs to be run where CORS doesn't block it so it needs to be under the same hostname (local files dont work they block imports).
+-- Summary,
 
-The 'dist' folder contains the working build with the index.html (javascript).
-The 'src' folder contains the source code (typescript).
+'dist' folder:
+contains two files generated from the 'src' folder a javscript file called engine.js and a css file called index.css. with a simple index.html.
 
+'src' folder:
+contains all the written source code
+
+
+-- How To Run,
+
+open the index.html in the 'dist' directory run by a browser
