@@ -91,14 +91,14 @@ class Mat4 {
 
     /**
      * Returns a rotation matrix in the ZX plane, rotating by the given number of turns (around Y axis)
-     * Right Handed System
+     * Left Handed System
      */
     public static rotation_xz( turns:number ): Mat4 {
         const r = turns * (2 * Math.PI);
         const rotationXZ: Matrix4x4 = [
-            Math.cos(r),  0, Math.sin(r), 0,
+            Math.cos(r),  0, -Math.sin(r), 0,
             0,            1, 0,            0,
-            -Math.sin(r),  0, Math.cos(r),  0,
+            Math.sin(r),  0, Math.cos(r),  0,
             0,            0, 0,            1
         ];
         return new Mat4(rotationXZ);

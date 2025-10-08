@@ -176,7 +176,7 @@ class Mesh {
     public RenderNext() {
         this.rot_amt_xz += this.rot_speed_xz * Time.deltaTime;
 
-        const mat:mat4 = mat4.rotation_xz(this.rot_amt_xz).multiply(mat4.translation(0,-0.5,0).multiply(mat4.scale(0.25,0.25,0.25)));
+        const mat:mat4 = mat4.translation(0,-0.5,0).multiply(mat4.rotation_xz(this.rot_amt_xz).multiply(mat4.scale(0.25,0.25,0.25)));
         this.shaderProgram.setUniform_Mat4x4(mat);
 
         this.RenderOnce();

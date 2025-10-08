@@ -411,20 +411,20 @@
         }
         /**
          * Returns a rotation matrix in the ZX plane, rotating by the given number of turns (around Y axis)
-         * Right Handed System
+         * Left Handed System
          */
         static rotation_xz(turns) {
           const r = turns * (2 * Math.PI);
           const rotationXZ = [
             Math.cos(r),
             0,
-            Math.sin(r),
+            -Math.sin(r),
             0,
             0,
             1,
             0,
             0,
-            -Math.sin(r),
+            Math.sin(r),
             0,
             Math.cos(r),
             0,
@@ -1049,7 +1049,7 @@
         rot_speed_xz = 0.25;
         RenderNext() {
           this.rot_amt_xz += this.rot_speed_xz * Time_default.deltaTime;
-          const mat = Mat4_default.rotation_xz(this.rot_amt_xz).multiply(Mat4_default.translation(0, -0.5, 0).multiply(Mat4_default.scale(0.25, 0.25, 0.25)));
+          const mat = Mat4_default.translation(0, -0.5, 0).multiply(Mat4_default.rotation_xz(this.rot_amt_xz).multiply(Mat4_default.scale(0.25, 0.25, 0.25)));
           this.shaderProgram.setUniform_Mat4x4(mat);
           this.RenderOnce();
         }
