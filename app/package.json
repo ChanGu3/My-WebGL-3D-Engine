@@ -2,13 +2,16 @@
   "name": "app",
   "version": "1.0.0",
   "description": "for building tailwind css file and compiling typescript into javascript",
-  "main": "",
+  "main": "server.js",
   "scripts": {
-    "dev-css": "npx @tailwindcss/cli -i ./src/tailwind.css -o ./dist/index.css --watch",
-    "dev-esbundle": "npx esbuild --platform=browser src/index.ts --bundle --outfile=dist/engine.js --watch",
-    "dev-ts": "npx tsc --watch",
-    "dev-all": "concurrently \"npm run dev-css\" \"npm run dev-esbundle\"",
-    "dev": "npm run dev-all"
+    "dev-css": "npx @tailwindcss/cli -c config/tailwind.config.js -i src/tailwind.css -o public/css/index.css --watch",
+    "dev-esbundle": "npx esbuild --platform=browser src/index.ts --bundle --outfile=public/js/engine.js --watch",
+    "dev-ts": "npx tsc -p path/to/tsconfig.json --watch",
+    "dev-server": "npx nodemon",
+    "dev-all": "concurrently \"npm run dev-css\" \"npm run dev-esbundle\" \"npm run dev-server\"",
+    "dev": "npm run dev-all",
+    "build": "",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "Chandler A Guthrie",
@@ -17,10 +20,12 @@
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.12",
     "concurrently": "^9.2.0",
+    "esbuild": "^0.25.10",
+    "nodemon": "^3.1.10",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "esbuild": "^0.25.10"
+    "express": "^5.1.0"
   }
 }

@@ -1,4 +1,4 @@
-import  Renderer from "./Rendering/Renderer.js";
+import  Renderer from "./Rendering/Renderer";
 
 class Engine3D {
     private static instance:Engine3D;
@@ -14,7 +14,6 @@ class Engine3D {
         Engine3D.instance = this;
         this.gl = gl;
         this.renderer = new Renderer();
-        this.renderer.render();
     }
 
     //

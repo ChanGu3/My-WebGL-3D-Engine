@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@tailwind utilities;
 
 @theme {
     --color-3DE-primary-light: #dee0de

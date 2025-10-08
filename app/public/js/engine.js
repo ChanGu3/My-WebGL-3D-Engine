@@ -1,4 +1,3 @@
-"use strict";
 (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __esm = (fn, res) => function __init() {
@@ -12,11 +11,13 @@
   var Shader, Shader_default;
   var init_Shader = __esm({
     "src/engine/Rendering/Shaders/Shader.ts"() {
-      "use strict";
       init_Engine3D();
       Shader = class {
+        shader;
+        _source_attribs = {};
+        // OpenGL Shading Language Vertex Source
+        source;
         constructor(shader_type, shader_source) {
-          this._source_fields = {};
           this.shader = Engine3D_default.inst.GL.createShader(shader_type);
           this.source = shader_source;
           this.loadShader();
@@ -28,21 +29,43 @@
         compileShader() {
           Engine3D_default.inst.GL.compileShader(this.shader);
         }
-        addSourceAttribute(shaderProgram, atr) {
-          this._source_fields[`${atr}`] = { name: `${atr}`, location: () => {
-            return Engine3D_default.inst.GL.getAttribLocation(shaderProgram, atr);
-          } };
+        addSourceField(shaderProgram, atr) {
+          this._source_attribs[`${atr}`] = {
+            name: `${atr}`,
+            location: () => {
+              const fieldAttribLoc = Engine3D_default.inst.GL.getAttribLocation(shaderProgram, atr);
+              if (fieldAttribLoc == -1) {
+                throw new Error('either no field attribute named "' + atr + '" in program or attribute name is reserved/built-in.');
+              }
+              let err = Engine3D_default.inst.GL.getError();
+              if (err != 0) {
+                throw new Error("invalid program. Error: " + err);
+              }
+              return fieldAttribLoc;
+            }
+          };
         }
         addSourceUniform(shaderProgram, atr) {
-          this._source_fields[`${atr}`] = { name: `${atr}`, location: () => {
-            return Engine3D_default.inst.GL.getUniformLocation(shaderProgram, atr);
-          } };
+          this._source_attribs[`${atr}`] = {
+            name: `${atr}`,
+            location: () => {
+              const uniformAttribLoc = Engine3D_default.inst.GL.getUniformLocation(shaderProgram, atr);
+              if (uniformAttribLoc == -1) {
+                throw new Error('either no uniform attribute named "' + atr + '" in program or attribute name is reserved/built-in.');
+              }
+              let err = Engine3D_default.inst.GL.getError();
+              if (err != 0) {
+                throw new Error("invalid program. Error: " + err);
+              }
+              return uniformAttribLoc;
+            }
+          };
         }
         get instance() {
           return this.shader;
         }
-        get source_fields() {
-          return this._source_fields;
+        get source_attribs() {
+          return this._source_attribs;
         }
       };
       Shader_default = Shader;
@@ -53,12 +76,22 @@
   var VertexShader, VertexShader_default;
   var init_VertexShader = __esm({
     "src/engine/Rendering/Shaders/VertexShader.ts"() {
-      "use strict";
       init_Shader();
       init_Engine3D();
+      init_ShaderProgram();
       VertexShader = class _VertexShader extends Shader_default {
-        static {
-          this.tempSource = `#version 300 es
+        static coor_Source = `#version 300 es
+         precision mediump float;
+     
+         uniform mat4 modelView;
+     
+         in vec3 coordinates;
+         
+         void main( void ) 
+         {
+            gl_Position = modelView * vec4( coordinates, 1.0 ); // orthographic or perspective (w = 1.0 | orthographic)
+         }`;
+        static coor_col_Source = `#version 300 es
          precision mediump float;
      
          uniform mat4 modelView;
@@ -72,12 +105,23 @@
             gl_Position = modelView * vec4( coordinates, 1.0 ); // orthographic or perspective (w = 1.0 | orthographic)
             v_color = color;
          }`;
-        }
-        constructor(shaderProgram) {
-          super(Engine3D_default.inst.GL.VERTEX_SHADER, _VertexShader.tempSource);
-          super.addSourceAttribute(shaderProgram, "coordinates");
-          super.addSourceAttribute(shaderProgram, "color");
-          super.addSourceUniform(shaderProgram, "modelView");
+        constructor(shaderProgram, vertexShaderFieldAttributes) {
+          switch (vertexShaderFieldAttributes) {
+            case 1 /* COORDINATES */:
+              super(Engine3D_default.inst.GL.VERTEX_SHADER, _VertexShader.coor_Source);
+              super.addSourceField(shaderProgram, "coordinates");
+              super.addSourceUniform(shaderProgram, "modelView");
+              break;
+            case 3 /* COOR_COL */:
+              super(Engine3D_default.inst.GL.VERTEX_SHADER, _VertexShader.coor_col_Source);
+              super.addSourceField(shaderProgram, "coordinates");
+              super.addSourceField(shaderProgram, "color");
+              super.addSourceUniform(shaderProgram, "modelView");
+              break;
+            default:
+              throw new Error("shaderProgram for field attributes selected is not supported");
+              break;
+          }
         }
       };
       VertexShader_default = VertexShader;
@@ -88,12 +132,20 @@
   var FragmentShader, FragmentShader_default;
   var init_FragmentShader = __esm({
     "src/engine/Rendering/Shaders/FragmentShader.ts"() {
-      "use strict";
       init_Shader();
       init_Engine3D();
+      init_ShaderProgram();
       FragmentShader = class _FragmentShader extends Shader_default {
-        static {
-          this.tempSource = `#version 300 es
+        static coor_Source = `#version 300 es
+         precision mediump float;
+         
+         out vec4 f_color;
+         
+         void main( void ) 
+         {
+            f_color = vec4( vec3(gl_FragCoord.z), 1.0 );
+         }`;
+        static coor_col_Source = `#version 300 es
          precision mediump float;
          
          in vec4 v_color;
@@ -103,41 +155,21 @@
          {
             f_color = v_color;
          }`;
-        }
-        constructor(shaderProgram) {
-          super(Engine3D_default.inst.GL.FRAGMENT_SHADER, _FragmentShader.tempSource);
+        constructor(shaderProgram, vertexShaderFieldAttributes) {
+          switch (vertexShaderFieldAttributes) {
+            case 1 /* COORDINATES */:
+              super(Engine3D_default.inst.GL.FRAGMENT_SHADER, _FragmentShader.coor_Source);
+              break;
+            case 3 /* COOR_COL */:
+              super(Engine3D_default.inst.GL.FRAGMENT_SHADER, _FragmentShader.coor_col_Source);
+              break;
+            default:
+              throw new Error("shaderProgram for field attributes selected is not supported");
+              break;
+          }
         }
       };
       FragmentShader_default = FragmentShader;
-    }
-  });
-
-  // src/engine/Rendering/Shaders/ShaderProgram.ts
-  var ShaderProgram, ShaderProgram_default;
-  var init_ShaderProgram = __esm({
-    "src/engine/Rendering/Shaders/ShaderProgram.ts"() {
-      "use strict";
-      init_VertexShader();
-      init_FragmentShader();
-      init_Engine3D();
-      ShaderProgram = class {
-        constructor() {
-          this.program = Engine3D_default.inst.GL.createProgram();
-          this._vertexShader = new VertexShader_default(this.program);
-          this._fragmentShader = new FragmentShader_default(this.program);
-          Engine3D_default.inst.GL.attachShader(this.program, this._vertexShader.instance);
-          Engine3D_default.inst.GL.attachShader(this.program, this._fragmentShader.instance);
-          Engine3D_default.inst.GL.linkProgram(this.program);
-          Engine3D_default.inst.GL.useProgram(this.program);
-        }
-        get vertexShader() {
-          return this._vertexShader;
-        }
-        get fragmentShader() {
-          return this._fragmentShader;
-        }
-      };
-      ShaderProgram_default = ShaderProgram;
     }
   });
 
@@ -145,8 +177,11 @@
   var Vec4, Vec4_default;
   var init_Vec4 = __esm({
     "src/engine/LinearAlgebra/Vec4.ts"() {
-      "use strict";
       Vec4 = class _Vec4 {
+        x;
+        y;
+        z;
+        w;
         constructor(vec4) {
           this.x = vec4.x;
           this.y = vec4.y;
@@ -248,9 +283,9 @@
   var Mat4, Mat4_default;
   var init_Mat4 = __esm({
     "src/engine/LinearAlgebra/Mat4.ts"() {
-      "use strict";
       init_Vec4();
       Mat4 = class _Mat4 {
+        data;
         constructor(data) {
           switch (data) {
             case 0 /* Zero */:
@@ -349,17 +384,17 @@
           return new _Mat4();
         }
         /**
-         * Returns a rotation matrix in the XY plane, rotating by the given number of turns. (around Z(up) axis)
-         * COUNTER-CLOCK WISE
+         * Returns a rotation matrix in the XY plane, rotating by the given number of turns. (around Z axis)
+         *  Left Handed System
          */
         static rotation_xy(turns) {
           const r = turns * (2 * Math.PI);
           const rotationXY = [
             Math.cos(r),
-            -Math.sin(r),
-            0,
-            0,
             Math.sin(r),
+            0,
+            0,
+            -Math.sin(r),
             Math.cos(r),
             0,
             0,
@@ -375,8 +410,8 @@
           return new _Mat4(rotationXY);
         }
         /**
-         * Returns a rotation matrix in the ZX plane, rotating by the given number of turns (around Y(forward) axis)
-         * COUNTER-CLOCK WISE
+         * Returns a rotation matrix in the ZX plane, rotating by the given number of turns (around Y axis)
+         * Right Handed System
          */
         static rotation_xz(turns) {
           const r = turns * (2 * Math.PI);
@@ -401,8 +436,8 @@
           return new _Mat4(rotationXZ);
         }
         /**
-         * returns a rotation matrix in the YZ plane, rotating by the given number of turns (around X(right) axis)
-         * COUNTER-CLOCK WISE
+         * returns a rotation matrix in the YZ plane, rotating by the given number of turns (around X axis)
+         * Left Handed System
          **/
         static rotation_yz(turns) {
           const r = turns * (2 * Math.PI);
@@ -413,10 +448,10 @@
             0,
             0,
             Math.cos(r),
-            -Math.sin(r),
-            0,
-            0,
             Math.sin(r),
+            0,
+            0,
+            -Math.sin(r),
             Math.cos(r),
             0,
             0,
@@ -599,9 +634,9 @@
          **/
         toString() {
           let pieces = ["["];
-          for (let col = 0; col < 4; col++) {
+          for (let row = 0; row < 4; row++) {
             pieces.push("[");
-            for (let row = 0; row < 4; row++) {
+            for (let col = 0; col < 4; col++) {
               const i = row * 4 + col;
               pieces.push(this.data[i].toString());
             }
@@ -615,24 +650,77 @@
     }
   });
 
-  // src/engine/Rendering/Shaders/Buffers.ts
-  var Buffers, Buffers_default;
-  var init_Buffers = __esm({
-    "src/engine/Rendering/Shaders/Buffers.ts"() {
-      "use strict";
+  // src/engine/Rendering/Shaders/ShaderProgram.ts
+  var ShaderProgram, ShaderProgram_default;
+  var init_ShaderProgram = __esm({
+    "src/engine/Rendering/Shaders/ShaderProgram.ts"() {
+      init_VertexShader();
+      init_FragmentShader();
       init_Engine3D();
-      Buffers = class {
-        constructor() {
-          this.vertex_buffer = Engine3D_default.inst.GL.createBuffer();
+      init_Mat4();
+      ShaderProgram = class _ShaderProgram {
+        static coord_count = 3;
+        static color_count = 4;
+        _vertexShader;
+        _fragmentShader;
+        _program;
+        _vertexShaderFieldAttributes;
+        constructor(vertexShaderFieldAttributes) {
+          this._vertexShaderFieldAttributes = vertexShaderFieldAttributes;
+          this._program = Engine3D_default.inst.GL.createProgram();
+          this._vertexShader = new VertexShader_default(this._program, vertexShaderFieldAttributes);
+          this._fragmentShader = new FragmentShader_default(this._program, vertexShaderFieldAttributes);
+          Engine3D_default.inst.GL.attachShader(this._program, this._vertexShader.instance);
+          Engine3D_default.inst.GL.attachShader(this._program, this._fragmentShader.instance);
+          Engine3D_default.inst.GL.linkProgram(this._program);
+          if (!Engine3D_default.inst.GL.getProgramParameter(this._program, WebGL2RenderingContext.LINK_STATUS)) {
+            let err = Engine3D_default.inst.GL.getProgramInfoLog(this._program);
+            throw new Error("Link error in shader program:\n" + err);
+          }
         }
-        bindVertexBuffer() {
-          Engine3D_default.inst.GL.bindBuffer(Engine3D_default.inst.GL.ARRAY_BUFFER, this.vertex_buffer);
+        get vertexShader() {
+          return this._vertexShader;
         }
-        unbindVertexBuffer() {
-          Engine3D_default.inst.GL.bindBuffer(Engine3D_default.inst.GL.ARRAY_BUFFER, null);
+        get vertexShaderFieldAttributes() {
+          return this._vertexShaderFieldAttributes;
+        }
+        get fragmentShader() {
+          return this._fragmentShader;
+        }
+        get program() {
+          return this._program;
+        }
+        static UnloadAny() {
+          Engine3D_default.inst.GL.useProgram(null);
+        }
+        Load() {
+          Engine3D_default.inst.GL.useProgram(this._program);
+          this.setUniform_Mat4x4(new Mat4_default(1 /* Identity */));
+        }
+        setUniform_Mat4x4(mat4) {
+          const loc = this.vertexShader.source_attribs["modelView"].location();
+          Engine3D_default.inst.GL.uniformMatrix4fv(loc, true, mat4.getData());
+        }
+        setVertexAttributesToBuffer(vertexData) {
+          let interleavedLength = 0;
+          interleavedLength = 1 /* COORDINATES */ & vertexData ? interleavedLength + _ShaderProgram.coord_count : interleavedLength;
+          interleavedLength = 2 /* COLOR */ & vertexData ? interleavedLength + 4 : interleavedLength;
+          let currOffset = 0;
+          if (1 /* COORDINATES */ & vertexData) {
+            const cordLoc = this.vertexShader.source_attribs["coordinates"].location();
+            Engine3D_default.inst.GL.vertexAttribPointer(cordLoc, _ShaderProgram.coord_count, WebGL2RenderingContext.FLOAT, false, interleavedLength * Float32Array.BYTES_PER_ELEMENT, 0);
+            Engine3D_default.inst.GL.enableVertexAttribArray(cordLoc);
+            currOffset += _ShaderProgram.coord_count;
+          }
+          if (2 /* COLOR */ & vertexData) {
+            const colorLoc = this.vertexShader.source_attribs["color"].location();
+            Engine3D_default.inst.GL.vertexAttribPointer(colorLoc, _ShaderProgram.color_count, WebGL2RenderingContext.FLOAT, false, interleavedLength * Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
+            Engine3D_default.inst.GL.enableVertexAttribArray(colorLoc);
+            currOffset += _ShaderProgram.color_count;
+          }
         }
       };
-      Buffers_default = Buffers;
+      ShaderProgram_default = ShaderProgram;
     }
   });
 
@@ -640,14 +728,10 @@
   var Time, Time_default;
   var init_Time = __esm({
     "src/engine/Time.ts"() {
-      "use strict";
       Time = class _Time {
-        static {
-          this.lastFrameUpTime = 0;
-        }
-        static {
-          this._deltaTime = 0;
-        }
+        static _inst;
+        static lastFrameUpTime = 0;
+        static _deltaTime = 0;
         // delta time in seconds
         constructor() {
           if (_Time._inst == null) {
@@ -674,45 +758,352 @@
     }
   });
 
+  // src/engine/Rendering/Shaders/Buffer.ts
+  var Buffer2, Buffer_default;
+  var init_Buffer = __esm({
+    "src/engine/Rendering/Shaders/Buffer.ts"() {
+      init_Engine3D();
+      Buffer2 = class {
+        /*
+        *  returns buffer loaded with data using usagePattern
+        */
+        static createAndLoadVertexBuffer(data, usage) {
+          const bindingPoint = Engine3D_default.inst.GL.ARRAY_BUFFER;
+          const bindingPointCurrent = Engine3D_default.inst.GL.ARRAY_BUFFER_BINDING;
+          return this.createAndLoadBuffer(new Float32Array(data), bindingPoint, bindingPointCurrent, usage);
+        }
+        /*
+        *  returns buffer loaded with data using usagePattern
+        */
+        static createAndLoadElementsBuffer(data, usage) {
+          const bindingPoint = Engine3D_default.inst.GL.ELEMENT_ARRAY_BUFFER;
+          const bindingPointCurrent = Engine3D_default.inst.GL.ELEMENT_ARRAY_BUFFER_BINDING;
+          return this.createAndLoadBuffer(new Uint16Array(data), bindingPoint, bindingPointCurrent, usage);
+        }
+        /*
+        *   return id of buffer created and loaded with data at bindingPoint and using usage
+        */
+        static createAndLoadBuffer(srcData, bindingPoint, bindingPointCurrent, usage) {
+          const current_array_buf = Engine3D_default.inst.GL.getParameter(bindingPointCurrent);
+          const buf_id = Engine3D_default.inst.GL.createBuffer();
+          Engine3D_default.inst.GL.bindBuffer(bindingPoint, buf_id);
+          Engine3D_default.inst.GL.bufferData(bindingPoint, srcData, usage);
+          Engine3D_default.inst.GL.bindBuffer(bindingPoint, current_array_buf);
+          return buf_id;
+        }
+        /*
+        *  binds the buffer_id to the binding point and returns the buffer bound to the bindingPointCurrent
+        */
+        static bindBuffer(buffer_id, bindingPoint, bindingPointCurrent) {
+          const current_array_buf = Engine3D_default.inst.GL.getParameter(bindingPointCurrent);
+          Engine3D_default.inst.GL.bindBuffer(bindingPoint, buffer_id);
+          return current_array_buf;
+        }
+        /*
+         *  binds the buffer_id to the ARRAY_BUFFER and returns the current bound buffer
+        */
+        static bindArrayBuffer(buffer_id) {
+          return this.bindBuffer(buffer_id, WebGL2RenderingContext.ARRAY_BUFFER, WebGL2RenderingContext.ARRAY_BUFFER_BINDING);
+        }
+        /*
+        *  binds the buffer_id to the ELEMENT_ARRAY_BUFFER and returns the current bound buffer
+        */
+        static bindElementArrayBuffer(buffer_id) {
+          return this.bindBuffer(buffer_id, WebGL2RenderingContext.ELEMENT_ARRAY_BUFFER, WebGL2RenderingContext.ELEMENT_ARRAY_BUFFER_BINDING);
+        }
+        /*
+        *  unbinds the chosen bindingPoint
+        */
+        static unbind(bindingPoint) {
+          Engine3D_default.inst.GL.bindBuffer(bindingPoint, null);
+        }
+      };
+      Buffer_default = Buffer2;
+    }
+  });
+
+  // src/engine/Rendering/Mesh.ts
+  var Mesh, Mesh_default;
+  var init_Mesh = __esm({
+    "src/engine/Rendering/Mesh.ts"() {
+      init_Buffer();
+      init_Engine3D();
+      init_ShaderProgram();
+      init_Mat4();
+      init_Time();
+      Mesh = class _Mesh {
+        verts;
+        indis;
+        n_verts;
+        n_indis;
+        windingOrder;
+        cullingFace = WebGL2RenderingContext.BACK;
+        isFaceCulling = true;
+        shaderProgram;
+        /**
+         * Creates a new mesh and loads it into video memory.
+         */
+        constructor(shaderProgram, vertices, indices, windingOrder = WebGL2RenderingContext.CW) {
+          this.verts = Buffer_default.createAndLoadVertexBuffer(vertices, Engine3D_default.inst.GL.STATIC_DRAW);
+          this.n_verts = vertices.length;
+          this.indis = Buffer_default.createAndLoadElementsBuffer(indices, Engine3D_default.inst.GL.STATIC_DRAW);
+          this.n_indis = indices.length;
+          this.windingOrder = windingOrder;
+          this.shaderProgram = shaderProgram;
+        }
+        /**
+         * Create a box mesh with the given dimensions and colors.
+         */
+        static box(shaderProgram, width, height, depth) {
+          let hwidth = width / 2;
+          let hheight = height / 2;
+          let hdepth = depth / 2;
+          let verts = [
+            hwidth,
+            -hheight,
+            -hdepth,
+            1,
+            0,
+            0,
+            1,
+            -hwidth,
+            -hheight,
+            -hdepth,
+            0,
+            1,
+            0,
+            1,
+            -hwidth,
+            hheight,
+            -hdepth,
+            0,
+            0,
+            1,
+            1,
+            hwidth,
+            hheight,
+            -hdepth,
+            1,
+            1,
+            0,
+            1,
+            hwidth,
+            -hheight,
+            hdepth,
+            1,
+            0,
+            1,
+            1,
+            -hwidth,
+            -hheight,
+            hdepth,
+            0,
+            1,
+            1,
+            1,
+            -hwidth,
+            hheight,
+            hdepth,
+            0.5,
+            0.5,
+            1,
+            1,
+            hwidth,
+            hheight,
+            hdepth,
+            1,
+            1,
+            0.5,
+            1
+          ];
+          let indis = [
+            // clockwise winding
+            /*
+            0, 1, 2, 2, 3, 0,
+            4, 0, 3, 3, 7, 4,
+            5, 4, 7, 7, 6, 5,
+            1, 5, 6, 6, 2, 1,
+            3, 2, 6, 6, 7, 3,
+            4, 5, 1, 1, 0, 4,
+            */
+            // counter-clockwise winding
+            0,
+            3,
+            2,
+            2,
+            1,
+            0,
+            4,
+            7,
+            3,
+            3,
+            0,
+            4,
+            5,
+            6,
+            7,
+            7,
+            4,
+            5,
+            1,
+            2,
+            6,
+            6,
+            5,
+            1,
+            3,
+            7,
+            6,
+            6,
+            2,
+            3,
+            4,
+            0,
+            1,
+            1,
+            5,
+            4
+          ];
+          return new _Mesh(shaderProgram, verts, indis);
+        }
+        /**
+         * Parse the given text as the body of an obj file. (Expecting counter-clockwise winding)
+         */
+        static from_obj_text(shaderProgram, text) {
+          const lines = text.split(/\r?\n/);
+          const vertices = [];
+          const indices = [];
+          for (let line of lines) {
+            let elements = line.trim().split(" ");
+            switch (elements[0]) {
+              case "v":
+                for (let i = 1; i < elements.length; i++) {
+                  const parsedFloat = parseFloat(elements[i]);
+                  if (isNaN(parsedFloat)) {
+                    throw new Error(`${elements[i]} .obj 'f' vertex values must be a valid floating point number`);
+                  } else {
+                    vertices.push(parsedFloat);
+                  }
+                }
+                break;
+              case "f":
+                for (let i = 1; i < elements.length; i++) {
+                  const parsedInt = parseInt(elements[i]);
+                  if (isNaN(parsedInt) || parsedInt < 0) {
+                    throw new Error(`${elements[i]} .obj 'f' elements must be a unsigned integer`);
+                  } else {
+                    indices.push(parsedInt - 1);
+                  }
+                }
+                break;
+              case "#":
+              default:
+                break;
+            }
+          }
+          return new _Mesh(shaderProgram, vertices, indices);
+        }
+        /**
+         * Asynchronously load the obj file as a mesh.
+         */
+        static from_obj_file(file_name, shaderProgram, f) {
+          let request = new XMLHttpRequest();
+          request.onreadystatechange = function() {
+            if (request.readyState != 4) {
+              return;
+            }
+            if (request.status != 200) {
+              throw new Error("HTTP error when opening .obj file: ");
+            }
+            let loaded_mesh = _Mesh.from_obj_text(shaderProgram, request.responseText);
+            console.log("loaded ", `objs/${file_name}`);
+            f(loaded_mesh);
+          };
+          request.open("GET", `objs/${file_name}`);
+          request.send();
+        }
+        /*
+        *  renders the mesh every frame.
+        */
+        render() {
+          this.shaderProgram.Load();
+          const prevVertBuffer = Buffer_default.bindArrayBuffer(this.verts);
+          const prevElemBuffer = Buffer_default.bindElementArrayBuffer(this.indis);
+          this.RenderNext();
+          Buffer_default.bindArrayBuffer(prevVertBuffer);
+          Buffer_default.bindElementArrayBuffer(prevElemBuffer);
+          ShaderProgram_default.UnloadAny();
+        }
+        RenderOnce() {
+          this.shaderProgram.setVertexAttributesToBuffer(this.shaderProgram.vertexShaderFieldAttributes);
+          if (this.isFaceCulling) {
+            Engine3D_default.inst.GL.frontFace(this.windingOrder);
+            Engine3D_default.inst.GL.cullFace(this.cullingFace);
+            Engine3D_default.inst.GL.enable(WebGL2RenderingContext.CULL_FACE);
+          } else {
+            Engine3D_default.inst.GL.disable(WebGL2RenderingContext.CULL_FACE);
+          }
+          Engine3D_default.inst.GL.drawElements(WebGL2RenderingContext.TRIANGLES, this.n_indis, WebGL2RenderingContext.UNSIGNED_SHORT, 0);
+        }
+        rot_amt_xz = 0;
+        rot_speed_xz = 0.25;
+        RenderNext() {
+          this.rot_amt_xz += this.rot_speed_xz * Time_default.deltaTime;
+          const mat = Mat4_default.rotation_xz(this.rot_amt_xz).multiply(Mat4_default.translation(0, -0.5, 0).multiply(Mat4_default.scale(0.25, 0.25, 0.25)));
+          this.shaderProgram.setUniform_Mat4x4(mat);
+          this.RenderOnce();
+        }
+        /*
+        *  Enables Culling For Mesh
+        */
+        EnableCulling() {
+          this.isFaceCulling = true;
+        }
+        /*
+        *  Disables Culling For Mesh
+        */
+        DisableCulling() {
+          this.isFaceCulling = false;
+        }
+        /*
+        *  sets the face(s) that will be culled from render
+        */
+        SetCullingFace(cullingFace) {
+          if (cullingFace !== WebGL2RenderingContext.BACK && cullingFace !== WebGL2RenderingContext.FRONT && cullingFace !== WebGL2RenderingContext.FRONT_AND_BACK) {
+            throw new Error("The culling face that was set does not exist -> Culling face: " + cullingFace);
+          } else {
+            this.cullingFace = cullingFace;
+          }
+        }
+      };
+      Mesh_default = Mesh;
+    }
+  });
+
   // src/engine/Rendering/Renderer.ts
   var Renderer, Renderer_default;
   var init_Renderer = __esm({
     "src/engine/Rendering/Renderer.ts"() {
-      "use strict";
       init_Engine3D();
       init_ShaderProgram();
-      init_Mat4();
-      init_Buffers();
       init_Time();
+      init_Mesh();
       Renderer = class _Renderer {
+        static updateTimeEvent = new Event("updateTimeEvent");
+        meshes;
+        shaderProgram;
         constructor() {
-          this.rot_amt_xy = 0;
-          this.rot_amt_xz = 0;
-          this.rot_amt_yz = 0;
-          this.rot_speed_xy = 0.25;
-          this.rot_speed_xz = 0.5;
-          this.rot_speed_yz = 0.05;
           new Time_default();
-          this.buffers = new Buffers_default();
-          this.shaderProgram = new ShaderProgram_default();
+          this.shaderProgram = new ShaderProgram_default(1 /* COORDINATES */);
+          this.meshes = [];
+          Mesh_default.from_obj_file("teapot.obj", this.shaderProgram, this.AddToMeshes.bind(this));
           this.initializeClearPresets();
           this.initializePresets();
           this.clear();
+          this.render();
         }
-        static {
-          this.updateTimeEvent = new Event("updateTimeEvent");
-        }
-        static {
-          this.ndcInterleavedLength = 3;
-        }
-        static {
-          this.colorInterleavedLength = 4;
-        }
-        static {
-          this.interleavedLength = _Renderer.ndcInterleavedLength + _Renderer.colorInterleavedLength;
-        }
-        static {
-          this.bytesOfValues = 4;
+        AddToMeshes(mesh) {
+          this.meshes.push(mesh);
         }
         //
         // Initializes clearing values for gl renderer
@@ -727,73 +1118,19 @@
         // Initializes clearing values for gl renderer
         initializePresets() {
           Engine3D_default.inst.GL.enable(WebGL2RenderingContext.DEPTH_TEST);
-          this.setUniform_Mat4x4(Mat4_default.rotation_xz(0.125));
         }
         render() {
           document.dispatchEvent(_Renderer.updateTimeEvent);
-          window.requestAnimationFrame(this.render.bind(this));
+          const aniFrameID = window.requestAnimationFrame(this.render.bind(this));
           this.clear();
-          this.buffers.bindVertexBuffer();
-          this.RenderNext();
-          this.buffers.unbindVertexBuffer();
-        }
-        setUniform_Mat4x4(mat4) {
-          const loc = this.shaderProgram.vertexShader.source_fields["modelView"].location();
-          Engine3D_default.inst.GL.uniformMatrix4fv(loc, true, mat4.getData());
-        }
-        //
-        // vec3 normalized device coordinates, vec4 color
-        //
-        RenderOnce(vert_s) {
-          if (vert_s.length % _Renderer.interleavedLength !== 0) {
-            throw new DOMException(`The Length Of the Vertexes are not interleaved by ${_Renderer.interleavedLength} floats`);
+          try {
+            for (const mesh of this.meshes) {
+              mesh.render();
+            }
+          } catch (e) {
+            console.error(e);
+            window.cancelAnimationFrame(aniFrameID);
           }
-          this.clear();
-          const vertexCount = vert_s.length / _Renderer.interleavedLength;
-          const cordLoc = this.shaderProgram.vertexShader.source_fields["coordinates"]?.location();
-          const colorLoc = this.shaderProgram.vertexShader.source_fields["color"]?.location();
-          Engine3D_default.inst.GL.bufferData(WebGL2RenderingContext.ARRAY_BUFFER, new Float32Array(vert_s), WebGL2RenderingContext.STATIC_DRAW);
-          Engine3D_default.inst.GL.vertexAttribPointer(cordLoc, 3, WebGL2RenderingContext.FLOAT, false, _Renderer.interleavedLength * _Renderer.bytesOfValues, 0);
-          Engine3D_default.inst.GL.enableVertexAttribArray(cordLoc);
-          Engine3D_default.inst.GL.vertexAttribPointer(colorLoc, 4, WebGL2RenderingContext.FLOAT, false, _Renderer.interleavedLength * _Renderer.bytesOfValues, _Renderer.bytesOfValues * _Renderer.ndcInterleavedLength);
-          Engine3D_default.inst.GL.enableVertexAttribArray(colorLoc);
-          Engine3D_default.inst.GL.clear(WebGL2RenderingContext.COLOR_BUFFER_BIT | WebGL2RenderingContext.DEPTH_BUFFER_BIT);
-          Engine3D_default.inst.GL.drawArrays(WebGL2RenderingContext.TRIANGLES, 0, vertexCount);
-        }
-        RenderNext() {
-          const vert_s = [
-            //bottom-left
-            0,
-            0.5,
-            0,
-            0,
-            1,
-            0,
-            1,
-            //left-t
-            0.5,
-            -0.5,
-            0,
-            0,
-            0,
-            1,
-            1,
-            //right-t
-            -0.5,
-            -0.5,
-            0,
-            1,
-            0,
-            0,
-            1
-            //left-b
-          ];
-          this.rot_amt_xy += this.rot_speed_xy * Time_default.deltaTime;
-          this.rot_amt_xz += this.rot_speed_xz * Time_default.deltaTime;
-          this.rot_amt_yz += this.rot_speed_yz * Time_default.deltaTime;
-          const mat = Mat4_default.rotation_yz(this.rot_amt_yz).multiply(Mat4_default.rotation_xz(this.rot_amt_xz)).multiply(Mat4_default.rotation_xy(this.rot_amt_xy));
-          this.setUniform_Mat4x4(mat);
-          this.RenderOnce(vert_s);
         }
       };
       Renderer_default = Renderer;
@@ -804,9 +1141,11 @@
   var Engine3D, Engine3D_default;
   var init_Engine3D = __esm({
     "src/engine/Engine3D.ts"() {
-      "use strict";
       init_Renderer();
       Engine3D = class _Engine3D {
+        static instance;
+        gl;
+        renderer;
         constructor(gl) {
           if (_Engine3D.instance !== null && _Engine3D.instance !== void 0) {
             throw new Error("Cannot Have Two instances of Engine3D");
@@ -814,7 +1153,6 @@
           _Engine3D.instance = this;
           this.gl = gl;
           this.renderer = new Renderer_default();
-          this.renderer.render();
         }
         //
         // Gets the instance of the current running engine
@@ -840,8 +1178,6 @@
   var require_index = __commonJS({
     "src/index.ts"() {
       init_Engine3D();
-      init_Mat4();
-      init_Vec4();
       var canvas = document.getElementById("canvas");
       var gl = canvas.getContext("webgl2");
       var engine = new Engine3D_default(gl);

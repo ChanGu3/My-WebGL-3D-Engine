@@ -1,4 +1,4 @@
-import Vec4, { type Vec4_T } from "./Vec4.js";
+import Vec4, { type Vec4_T } from "./Vec4";
 
 export type Matrix4x4 = [
     number, number, number, number,
@@ -75,14 +75,14 @@ class Mat4 {
     }
 
     /**
-     * Returns a rotation matrix in the XY plane, rotating by the given number of turns. (around Z(up) axis)
-     * COUNTER-CLOCK WISE
+     * Returns a rotation matrix in the XY plane, rotating by the given number of turns. (around Z axis)
+     *  Left Handed System
      */
     public static rotation_xy( turns:number ): Mat4 {
         const r = turns * (2 * Math.PI);
         const rotationXY: Matrix4x4 = [
-            Math.cos(r), -Math.sin(r), 0,  0,
-            Math.sin(r), Math.cos(r),  0,  0,
+            Math.cos(r), Math.sin(r), 0,  0,
+            -Math.sin(r), Math.cos(r),  0,  0,
             0,           0,            1,  0,
             0,           0,            0,  1
         ];
@@ -90,8 +90,8 @@ class Mat4 {
     }
 
     /**
-     * Returns a rotation matrix in the ZX plane, rotating by the given number of turns (around Y(forward) axis)
-     * COUNTER-CLOCK WISE
+     * Returns a rotation matrix in the ZX plane, rotating by the given number of turns (around Y axis)
+     * Right Handed System
      */
     public static rotation_xz( turns:number ): Mat4 {
         const r = turns * (2 * Math.PI);
@@ -105,15 +105,15 @@ class Mat4 {
     }
 
     /**
-     * returns a rotation matrix in the YZ plane, rotating by the given number of turns (around X(right) axis)
-     * COUNTER-CLOCK WISE
+     * returns a rotation matrix in the YZ plane, rotating by the given number of turns (around X axis)
+     * Left Handed System
      **/
     public static rotation_yz( turns: number ): Mat4  {
         const r = turns * (2 * Math.PI);
         const rotationYZ: Matrix4x4 = [
             1, 0,           0,             0,
-            0, Math.cos(r), -Math.sin(r),  0,
-            0, Math.sin(r), Math.cos(r),   0,
+            0, Math.cos(r), Math.sin(r),  0,
+            0, -Math.sin(r), Math.cos(r),   0,
             0, 0,           0,             1
         ];
         return new Mat4(rotationYZ);
@@ -324,11 +324,11 @@ class Mat4 {
     toString() {
         let pieces = [ '[' ];
 
-        for( let col = 0; col < 4; col ++ ){
+        for( let row = 0; row < 4; row++ ){
             pieces.push( '[' );
 
-            for( let row = 0; row < 4; row ++ ){
-                const i = row * 4 + col;
+            for( let col = 0; col < 4; col ++ ){
+                const i = (row * 4) + col;
                 pieces.push( this.data[i]!.toString());
             }
 
