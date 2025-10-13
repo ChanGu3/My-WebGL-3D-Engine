@@ -1,8 +1,8 @@
-import Buffer from "./Shaders/Buffer";
+import Buffer from "./shaders/Buffer";
 import Engine3D from "../Engine3D";
-import ShaderProgram, {VertexShaderFieldAttributes} from "./Shaders/ShaderProgram";
-import mat4 from "../LinearAlgebra/Mat4";
+import ShaderProgram from "./shaders/ShaderProgram";
 import Time from "../Time";
+import Mat4, {UniqueMatrix} from "../linear-algebra/Mat4";
 
 class Mesh {
     private verts:WebGLBuffer;
@@ -37,15 +37,15 @@ class Mesh {
         let hdepth = depth / 2.0;
 
         let verts = [
-            hwidth, -hheight, -hdepth,      1.0, 0.0, 0.0, 1.0,
-            -hwidth, -hheight, -hdepth,     0.0, 1.0, 0.0, 1.0,
-            -hwidth, hheight, -hdepth,      0.0, 0.0, 1.0, 1.0,
-            hwidth, hheight, -hdepth,       1.0, 1.0, 0.0, 1.0,
+            hwidth, -hheight, -hdepth,      //1.0, 0.0, 0.0, 1.0,
+            -hwidth, -hheight, -hdepth,     //0.0, 1.0, 0.0, 1.0,
+            -hwidth, hheight, -hdepth,      //0.0, 0.0, 1.0, 1.0,
+            hwidth, hheight, -hdepth,       //1.0, 1.0, 0.0, 1.0,
 
-            hwidth, -hheight, hdepth,       1.0, 0.0, 1.0, 1.0,
-            -hwidth, -hheight, hdepth,      0.0, 1.0, 1.0, 1.0,
-            -hwidth, hheight, hdepth,       0.5, 0.5, 1.0, 1.0,
-            hwidth, hheight, hdepth,        1.0, 1.0, 0.5, 1.0,
+            hwidth, -hheight, hdepth,       //1.0, 0.0, 1.0, 1.0,
+            -hwidth, -hheight, hdepth,      //0.0, 1.0, 1.0, 1.0,
+            -hwidth, hheight, hdepth,       //0.5, 0.5, 1.0, 1.0,
+            hwidth, hheight, hdepth,        //1.0, 1.0, 0.5, 1.0,
         ];
 
         let indis = [
@@ -58,7 +58,6 @@ class Mesh {
             3, 2, 6, 6, 7, 3,
             4, 5, 1, 1, 0, 4,
             */
-
             // counter-clockwise winding
             0, 3, 2, 2, 1, 0,
             4, 7, 3, 3, 0, 4,
@@ -68,7 +67,9 @@ class Mesh {
             4, 0, 1, 1, 5, 4,
         ];
 
-        return new Mesh( shaderProgram, verts, indis );
+        const mesh:Mesh = new Mesh( shaderProgram, verts, indis );
+        mesh.windingOrder = WebGL2RenderingContext.CCW;
+        return mesh;
     }
 
     /**
@@ -157,7 +158,7 @@ class Mesh {
 
     public RenderOnce():void
     {
-        this.shaderProgram.setVertexAttributesToBuffer(this.shaderProgram.vertexShaderFieldAttributes);
+        this.shaderProgram.setVertexAttributesToBuffer();
 
         if (this.isFaceCulling) {
             Engine3D.inst.GL.frontFace(this.windingOrder);
@@ -172,12 +173,15 @@ class Mesh {
     }
 
     private rot_amt_xz:number = 0.0;
-    private readonly rot_speed_xz:number = 0.25;
+    private readonly rot_speed_xz:number = -0.125;
     public RenderNext() {
         this.rot_amt_xz += this.rot_speed_xz * Time.deltaTime;
 
-        const mat:mat4 = mat4.translation(0,-0.5,0).multiply(mat4.rotation_xz(this.rot_amt_xz).multiply(mat4.scale(0.25,0.25,0.25)));
-        this.shaderProgram.setUniform_Mat4x4(mat);
+        //const mat:mat4 = mat4.translation(0,-0.5,0).multiply(mat4.rotation_xz(this.rot_amt_xz).multiply(mat4.scale(0.25,0.25,0.25)));
+        const mat:Mat4 = Mat4.translation(0,0,2.2).multiply(Mat4.rotation_xz(this.rot_amt_xz).multiply(Mat4.scale(1.5,1.5,1.5)))
+        this.shaderProgram.setModelUniform_Mat4x4(mat);
+        this.shaderProgram.setProjectionUniform_Mat4x4(Mat4.perspectiveUsingFrustum(0.25, Engine3D.inst.VIEWPORT.aspectRatio, 1, 10));
+
 
         this.RenderOnce();
     }
@@ -208,6 +212,22 @@ class Mesh {
             this.cullingFace = cullingFace;
         }
     }
+
+    /*
+
+    *  Sets the current meshes render winding order to clock wise
+
+    public SetToWindingOrderCW():void {
+        this.windingOrder = WebGL2RenderingContext.CW;
+    }
+
+
+    *  Sets the current meshes render winding order to counter clock wise
+
+    public SetToWindingOrderCWW():void {
+        this.windingOrder = WebGL2RenderingContext.CCW;
+    }
+    */
 }
 
 export default Mesh;

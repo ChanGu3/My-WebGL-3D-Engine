@@ -1,8 +1,9 @@
 import Engine3D from "../Engine3D";
-import ShaderProgram, {VertexShaderFieldAttributes} from "./Shaders/ShaderProgram";
+import ShaderProgram, {VertexShaderFieldAttributes} from "./shaders/ShaderProgram";
 import Time from "../Time";
 import Mesh from "./Mesh";
-import shaderProgram from "./Shaders/ShaderProgram";
+import shaderProgram from "./shaders/ShaderProgram";
+import mesh from "./Mesh";
 
 //
 // Render that expects Interleaved Vectors for rendering
@@ -17,13 +18,20 @@ class Renderer {
         new Time();
 
         this.shaderProgram = new ShaderProgram(VertexShaderFieldAttributes.COORDINATES);
-        this.meshes = [];
-        Mesh.from_obj_file("teapot.obj", this.shaderProgram, this.AddToMeshes.bind(this));
-        this.initializeClearPresets();
-        this.initializePresets();
+        this.shaderProgram.CompileAttachAndLink().then(
+            () => {
+                this.meshes = [];
+                //Mesh.from_obj_file("cow.obj", this.shaderProgram, this.AddToMeshes.bind(this));
+                const mesh1:Mesh = Mesh.box(this.shaderProgram, 1, 1, 1);
+                this.meshes.push(mesh1);
 
-        this.clear();
-        this.render();
+                this.initializeClearPresets();
+                this.initializePresets();
+
+                this.clear();
+                this.render();
+            }
+        );
     }
 
     public AddToMeshes(mesh:Mesh) {

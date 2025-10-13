@@ -18,18 +18,20 @@ class Shader {
     private shader:WebGLShader;
 
     protected _source_attribs:source_type = {};
-    // OpenGL Shading Language Vertex Source
-    protected source:string;
+    private shader_type:number;
+    private fileName:string = "";
 
-    constructor (shader_type:number, shader_source:string) {
+    /*
+    *    {filename - no extension just filename}
+    */
+    constructor (shader_type:number, fileName:string) {
         this.shader = Engine3D.inst.GL.createShader( shader_type ) as WebGLShader;
-        this.source = shader_source;
-        this.loadShader();
-        this.compileShader();
+        this.shader_type = shader_type;
+        this.fileName = fileName;
     }
 
-    protected loadShader():void {
-        Engine3D.inst.GL.shaderSource(this.shader, this.source)
+    protected loadShader(source:string):void {
+        Engine3D.inst.GL.shaderSource(this.shader, source)
     }
 
     protected compileShader():void {
@@ -81,6 +83,49 @@ class Shader {
 
     public get source_attribs():source_type {
         return this._source_attribs;
+    }
+
+    /*
+        Gets the shader file and places it into the shaders source string in memory.
+    */
+    // @ts-ignore
+    public async getShaderFile_Load_Compile():Promise<void> {
+        let fullPath:string = "";
+
+        switch(this.shader_type) {
+            case Engine3D.inst.GL.VERTEX_SHADER:
+                fullPath += `/vertex-shaders/${this.fileName}.vert`
+                break;
+            case Engine3D.inst.GL.FRAGMENT_SHADER:
+                fullPath += `/fragment-shaders/${this.fileName}.frag`
+                break;
+
+        }
+
+        try {
+            const resp:Response = await fetch(fullPath, {
+                method: 'GET',
+                mode: 'cors',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'text/plain',
+                }
+            });
+
+            if(!resp.ok) {
+                throw new Error('[CAG] - Could Not Find File! Check if your file includes the correct shader extension and that the filename parameter input does not include the extension.');
+            }
+
+            const source = await resp.text();
+
+            this.loadShader(source);
+            this.compileShader();
+        }
+        catch (e) {
+            throw new Error(`[CAG] - Something Went Wrong With Retrieving the Shader at ${fullPath} - error ${e}`);
+        }
+
+        return;
     }
 }
 

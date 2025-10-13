@@ -67,6 +67,10 @@ class Mat4 {
         return this.data;
     }
 
+    private static tau_to_radians(tau: number): number {
+        return tau * Math.PI * 2;
+    }
+
     /**
      * returns the identity matrix
      */
@@ -78,8 +82,8 @@ class Mat4 {
      * Returns a rotation matrix in the XY plane, rotating by the given number of turns. (around Z axis)
      *  Left Handed System
      */
-    public static rotation_xy( turns:number ): Mat4 {
-        const r = turns * (2 * Math.PI);
+    public static rotation_xy( tau:number ): Mat4 {
+        const r = Mat4.tau_to_radians(tau);
         const rotationXY: Matrix4x4 = [
             Math.cos(r), Math.sin(r), 0,  0,
             -Math.sin(r), Math.cos(r),  0,  0,
@@ -93,8 +97,8 @@ class Mat4 {
      * Returns a rotation matrix in the ZX plane, rotating by the given number of turns (around Y axis)
      * Left Handed System
      */
-    public static rotation_xz( turns:number ): Mat4 {
-        const r = turns * (2 * Math.PI);
+    public static rotation_xz( tau:number ): Mat4 {
+        const r = Mat4.tau_to_radians(tau);
         const rotationXZ: Matrix4x4 = [
             Math.cos(r),  0, -Math.sin(r), 0,
             0,            1, 0,            0,
@@ -108,8 +112,8 @@ class Mat4 {
      * returns a rotation matrix in the YZ plane, rotating by the given number of turns (around X axis)
      * Left Handed System
      **/
-    public static rotation_yz( turns: number ): Mat4  {
-        const r = turns * (2 * Math.PI);
+    public static rotation_yz( tau: number ): Mat4  {
+        const r = Mat4.tau_to_radians(tau);
         const rotationYZ: Matrix4x4 = [
             1, 0,           0,             0,
             0, Math.cos(r), Math.sin(r),  0,
@@ -143,6 +147,56 @@ class Mat4 {
             0,  0,  0,  1
         ];
         return new Mat4(scaledMat4X4);
+    }
+
+    /*
+    *  returns the perspective projection matrix using the frustum
+    */
+    public static frustum( left:number, right:number, bottom:number, top:number, near:number, far:number ):Mat4 {
+        // these scalars will scale x,y values to the near plane
+        let scale_x = 2 * near / ( right - left );
+        let scale_y = 2 * near / ( top - bottom );
+
+        // shift the eye depending on the right/left and top/bottom planes.
+        // only really used for VR (left eye and right eye shifted differently).
+        let t_x = ( right + left ) / ( right - left );
+        let t_y = ( top + bottom ) / ( top - bottom );
+
+        // map z into the range [ -1, 1], but with a non-linear ramp
+        // see: https://learnopengl.com/Advanced-OpenGL/Depth-testing and
+        // https://www.scratchapixel.com/lessons/3d-basic-rendering/perspective-and-orthographic-projection-matrix/opengl-perspective-projection-matrix and
+        // http://learnwebgl.brown37.net/08_projections/projections_perspective.html
+        // for more info. (note, I'm using left-handed coordinates. Some sources use right-handed).
+        const c2 = (far + near) / (far - near);
+        const c1 = 2 * far * near / (far - near);
+
+        return new Mat4( [
+            scale_x,    0,          t_x, 0,
+            0,          scale_y,    t_y, 0,
+            0,          0,          c2, -c1,
+            0,          0,          1,   0,
+        ] );
+    }
+
+    /*
+    *  creates a perspective matrix using the frustum matrix.
+    */
+    public static perspectiveUsingFrustum( tau:number, aspectRatio:number, near:number, far:number ): Mat4 {
+            // Gets top of the field of view by using camera view distance to the near plane
+            // multiplied by the tangent of the fov in tau converted into radians divided by 2
+            // to remove only half the angle for the top leaving the other half for the bottom
+            // Just the slope of the
+            const top = Math.tan( Mat4.tau_to_radians(tau)/2 ) * near;
+            const bottom = -top;
+            // Using top we can get the right side since it's the same size multiplied by the aspect ratio
+            // as the top is multiplied since it's the current length from apex origin to be scaled.
+            // When left and right are used for scaling x and y transformations for vertices they are squished
+            // and then when they are rasterized onto the screen they stretch back to the current aspect ratio
+            // representing the vertices in the correct places not stretched by the current aspect ratio .
+            const right = top * aspectRatio;
+            const left = -right;
+
+            return Mat4.frustum(left, right, bottom, top, near, far);
     }
 
     /**

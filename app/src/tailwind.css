@@ -1,5 +1,6 @@
 @tailwind utilities;
 
 @theme {
-    --color-3DE-primary-light: #dee0de
+    --color-3DE-primary-light: #dee0de;
+    --color-3DE-canvas-border: #3d3d3d;
 }

@@ -7,24 +7,26 @@
     return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
   };
 
-  // src/engine/Rendering/Shaders/Shader.ts
+  // src/engine/rendering/shaders/Shader.ts
   var Shader, Shader_default;
   var init_Shader = __esm({
-    "src/engine/Rendering/Shaders/Shader.ts"() {
+    "src/engine/rendering/shaders/Shader.ts"() {
       init_Engine3D();
       Shader = class {
         shader;
         _source_attribs = {};
-        // OpenGL Shading Language Vertex Source
-        source;
-        constructor(shader_type, shader_source) {
+        shader_type;
+        fileName = "";
+        /*
+        *    {filename - no extension just filename}
+        */
+        constructor(shader_type, fileName) {
           this.shader = Engine3D_default.inst.GL.createShader(shader_type);
-          this.source = shader_source;
-          this.loadShader();
-          this.compileShader();
+          this.shader_type = shader_type;
+          this.fileName = fileName;
         }
-        loadShader() {
-          Engine3D_default.inst.GL.shaderSource(this.shader, this.source);
+        loadShader(source) {
+          Engine3D_default.inst.GL.shaderSource(this.shader, source);
         }
         compileShader() {
           Engine3D_default.inst.GL.compileShader(this.shader);
@@ -67,59 +69,70 @@
         get source_attribs() {
           return this._source_attribs;
         }
+        /*
+            Gets the shader file and places it into the shaders source string in memory.
+        */
+        // @ts-ignore
+        async getShaderFile_Load_Compile() {
+          let fullPath = "";
+          switch (this.shader_type) {
+            case Engine3D_default.inst.GL.VERTEX_SHADER:
+              fullPath += `/vertex-shaders/${this.fileName}.vert`;
+              break;
+            case Engine3D_default.inst.GL.FRAGMENT_SHADER:
+              fullPath += `/fragment-shaders/${this.fileName}.frag`;
+              break;
+          }
+          try {
+            const resp = await fetch(fullPath, {
+              method: "GET",
+              mode: "cors",
+              credentials: "same-origin",
+              headers: {
+                "Content-Type": "text/plain"
+              }
+            });
+            if (!resp.ok) {
+              throw new Error("[CAG] - Could Not Find File! Check if your file includes the correct shader extension and that the filename parameter input does not include the extension.");
+            }
+            const source = await resp.text();
+            this.loadShader(source);
+            this.compileShader();
+          } catch (e) {
+            throw new Error(`[CAG] - Something Went Wrong With Retrieving the Shader at ${fullPath} - error ${e}`);
+          }
+          return;
+        }
       };
       Shader_default = Shader;
     }
   });
 
-  // src/engine/Rendering/Shaders/VertexShader.ts
+  // src/engine/rendering/shaders/VertexShader.ts
   var VertexShader, VertexShader_default;
   var init_VertexShader = __esm({
-    "src/engine/Rendering/Shaders/VertexShader.ts"() {
+    "src/engine/rendering/shaders/VertexShader.ts"() {
       init_Shader();
       init_Engine3D();
       init_ShaderProgram();
-      VertexShader = class _VertexShader extends Shader_default {
-        static coor_Source = `#version 300 es
-         precision mediump float;
-     
-         uniform mat4 modelView;
-     
-         in vec3 coordinates;
-         
-         void main( void ) 
-         {
-            gl_Position = modelView * vec4( coordinates, 1.0 ); // orthographic or perspective (w = 1.0 | orthographic)
-         }`;
-        static coor_col_Source = `#version 300 es
-         precision mediump float;
-     
-         uniform mat4 modelView;
-     
-         in vec3 coordinates;
-         in vec4 color;
-         out vec4 v_color;
-     
-         void main( void ) 
-         {
-            gl_Position = modelView * vec4( coordinates, 1.0 ); // orthographic or perspective (w = 1.0 | orthographic)
-            v_color = color;
-         }`;
+      VertexShader = class extends Shader_default {
         constructor(shaderProgram, vertexShaderFieldAttributes) {
           switch (vertexShaderFieldAttributes) {
             case 1 /* COORDINATES */:
-              super(Engine3D_default.inst.GL.VERTEX_SHADER, _VertexShader.coor_Source);
+              super(Engine3D_default.inst.GL.VERTEX_SHADER, "coordinates");
               super.addSourceField(shaderProgram, "coordinates");
               super.addSourceUniform(shaderProgram, "modelView");
+              super.addSourceUniform(shaderProgram, "projection");
               break;
             case 3 /* COOR_COL */:
-              super(Engine3D_default.inst.GL.VERTEX_SHADER, _VertexShader.coor_col_Source);
+              super(Engine3D_default.inst.GL.VERTEX_SHADER, "coord_color");
               super.addSourceField(shaderProgram, "coordinates");
               super.addSourceField(shaderProgram, "color");
               super.addSourceUniform(shaderProgram, "modelView");
+              super.addSourceUniform(shaderProgram, "projection");
               break;
             default:
-              throw new Error("shaderProgram for field attributes selected is not supported");
+              throw new Error("[CAG] shaderProgram for field attributes selected is not supported");
               break;
           }
         }
@@ -128,40 +141,21 @@
     }
   });
 
-  // src/engine/Rendering/Shaders/FragmentShader.ts
+  // src/engine/rendering/shaders/FragmentShader.ts
   var FragmentShader, FragmentShader_default;
   var init_FragmentShader = __esm({
-    "src/engine/Rendering/Shaders/FragmentShader.ts"() {
+    "src/engine/rendering/shaders/FragmentShader.ts"() {
       init_Shader();
       init_Engine3D();
       init_ShaderProgram();
-      FragmentShader = class _FragmentShader extends Shader_default {
-        static coor_Source = `#version 300 es
-         precision mediump float;
-         
-         out vec4 f_color;
-         
-         void main( void ) 
-         {
-            f_color = vec4( vec3(gl_FragCoord.z), 1.0 );
-         }`;
-        static coor_col_Source = `#version 300 es
-         precision mediump float;
-         
-         in vec4 v_color;
-         out vec4 f_color;
-         
-         void main( void ) 
-         {
-            f_color = v_color;
-         }`;
+      FragmentShader = class extends Shader_default {
         constructor(shaderProgram, vertexShaderFieldAttributes) {
           switch (vertexShaderFieldAttributes) {
             case 1 /* COORDINATES */:
-              super(Engine3D_default.inst.GL.FRAGMENT_SHADER, _FragmentShader.coor_Source);
+              super(Engine3D_default.inst.GL.FRAGMENT_SHADER, "coordinates-depth-shader");
               break;
             case 3 /* COOR_COL */:
-              super(Engine3D_default.inst.GL.FRAGMENT_SHADER, _FragmentShader.coor_col_Source);
+              super(Engine3D_default.inst.GL.FRAGMENT_SHADER, "coord_color");
               break;
             default:
               throw new Error("shaderProgram for field attributes selected is not supported");
@@ -173,10 +167,10 @@
     }
   });
 
-  // src/engine/LinearAlgebra/Vec4.ts
+  // src/engine/linear-algebra/Vec4.ts
   var Vec4, Vec4_default;
   var init_Vec4 = __esm({
-    "src/engine/LinearAlgebra/Vec4.ts"() {
+    "src/engine/linear-algebra/Vec4.ts"() {
       Vec4 = class _Vec4 {
         x;
         y;
@@ -279,10 +273,10 @@
     }
   });
 
-  // src/engine/LinearAlgebra/Mat4.ts
+  // src/engine/linear-algebra/Mat4.ts
   var Mat4, Mat4_default;
   var init_Mat4 = __esm({
-    "src/engine/LinearAlgebra/Mat4.ts"() {
+    "src/engine/linear-algebra/Mat4.ts"() {
       init_Vec4();
       Mat4 = class _Mat4 {
         data;
@@ -377,6 +371,9 @@
         getData() {
           return this.data;
         }
+        static tau_to_radians(tau) {
+          return tau * Math.PI * 2;
+        }
         /**
          * returns the identity matrix
          */
@@ -387,8 +384,8 @@
          * Returns a rotation matrix in the XY plane, rotating by the given number of turns. (around Z axis)
          *  Left Handed System
          */
-        static rotation_xy(turns) {
-          const r = turns * (2 * Math.PI);
+        static rotation_xy(tau) {
+          const r = _Mat4.tau_to_radians(tau);
           const rotationXY = [
             Math.cos(r),
             Math.sin(r),
@@ -413,8 +410,8 @@
          * Returns a rotation matrix in the ZX plane, rotating by the given number of turns (around Y axis)
          * Left Handed System
          */
-        static rotation_xz(turns) {
-          const r = turns * (2 * Math.PI);
+        static rotation_xz(tau) {
+          const r = _Mat4.tau_to_radians(tau);
           const rotationXZ = [
             Math.cos(r),
             0,
@@ -439,8 +436,8 @@
          * returns a rotation matrix in the YZ plane, rotating by the given number of turns (around X axis)
          * Left Handed System
          **/
-        static rotation_yz(turns) {
-          const r = turns * (2 * Math.PI);
+        static rotation_yz(tau) {
+          const r = _Mat4.tau_to_radians(tau);
           const rotationYZ = [
             1,
             0,
@@ -508,6 +505,45 @@
             1
           ];
           return new _Mat4(scaledMat4X4);
+        }
+        /*
+        *  returns the perspective projection matrix using the frustum
+        */
+        static frustum(left, right, bottom, top, near, far) {
+          let scale_x = 2 * near / (right - left);
+          let scale_y = 2 * near / (top - bottom);
+          let t_x = (right + left) / (right - left);
+          let t_y = (top + bottom) / (top - bottom);
+          const c2 = (far + near) / (far - near);
+          const c1 = 2 * far * near / (far - near);
+          return new _Mat4([
+            scale_x,
+            0,
+            t_x,
+            0,
+            0,
+            scale_y,
+            t_y,
+            0,
+            0,
+            0,
+            c2,
+            -c1,
+            0,
+            0,
+            1,
+            0
+          ]);
+        }
+        /*
+        *  creates a perspective matrix using the frustum matrix.
+        */
+        static perspectiveUsingFrustum(tau, aspectRatio, near, far) {
+          const top = Math.tan(_Mat4.tau_to_radians(tau) / 2) * near;
+          const bottom = -top;
+          const right = top * aspectRatio;
+          const left = -right;
+          return _Mat4.frustum(left, right, bottom, top, near, far);
         }
         /**
          returns the combination of two matrix transformation  in order,
@@ -650,10 +686,10 @@
     }
   });
 
-  // src/engine/Rendering/Shaders/ShaderProgram.ts
+  // src/engine/rendering/shaders/ShaderProgram.ts
   var ShaderProgram, ShaderProgram_default;
   var init_ShaderProgram = __esm({
-    "src/engine/Rendering/Shaders/ShaderProgram.ts"() {
+    "src/engine/rendering/shaders/ShaderProgram.ts"() {
       init_VertexShader();
       init_FragmentShader();
       init_Engine3D();
@@ -670,12 +706,22 @@
           this._program = Engine3D_default.inst.GL.createProgram();
           this._vertexShader = new VertexShader_default(this._program, vertexShaderFieldAttributes);
           this._fragmentShader = new FragmentShader_default(this._program, vertexShaderFieldAttributes);
-          Engine3D_default.inst.GL.attachShader(this._program, this._vertexShader.instance);
-          Engine3D_default.inst.GL.attachShader(this._program, this._fragmentShader.instance);
-          Engine3D_default.inst.GL.linkProgram(this._program);
-          if (!Engine3D_default.inst.GL.getProgramParameter(this._program, WebGL2RenderingContext.LINK_STATUS)) {
-            let err = Engine3D_default.inst.GL.getProgramInfoLog(this._program);
-            throw new Error("Link error in shader program:\n" + err);
+        }
+        // @ts-ignore
+        async CompileAttachAndLink() {
+          try {
+            await this._fragmentShader.getShaderFile_Load_Compile();
+            await this._vertexShader.getShaderFile_Load_Compile();
+            Engine3D_default.inst.GL.attachShader(this._program, this._vertexShader.instance);
+            Engine3D_default.inst.GL.attachShader(this._program, this._fragmentShader.instance);
+            Engine3D_default.inst.GL.linkProgram(this._program);
+            if (!Engine3D_default.inst.GL.getProgramParameter(this._program, WebGL2RenderingContext.LINK_STATUS)) {
+              let err = Engine3D_default.inst.GL.getProgramInfoLog(this._program);
+              throw new Error("Link error in shader program:\n" + err);
+            }
+            return;
+          } catch (err) {
+            throw new Error(err);
           }
         }
         get vertexShader() {
@@ -695,24 +741,28 @@
         }
         Load() {
           Engine3D_default.inst.GL.useProgram(this._program);
-          this.setUniform_Mat4x4(new Mat4_default(1 /* Identity */));
+          this.setModelUniform_Mat4x4(new Mat4_default(1 /* Identity */));
         }
-        setUniform_Mat4x4(mat4) {
+        setModelUniform_Mat4x4(mat4) {
           const loc = this.vertexShader.source_attribs["modelView"].location();
           Engine3D_default.inst.GL.uniformMatrix4fv(loc, true, mat4.getData());
         }
-        setVertexAttributesToBuffer(vertexData) {
+        setProjectionUniform_Mat4x4(mat4) {
+          const loc = this.vertexShader.source_attribs["projection"].location();
+          Engine3D_default.inst.GL.uniformMatrix4fv(loc, true, mat4.getData());
+        }
+        setVertexAttributesToBuffer() {
           let interleavedLength = 0;
-          interleavedLength = 1 /* COORDINATES */ & vertexData ? interleavedLength + _ShaderProgram.coord_count : interleavedLength;
-          interleavedLength = 2 /* COLOR */ & vertexData ? interleavedLength + 4 : interleavedLength;
+          interleavedLength = 1 /* COORDINATES */ & this._vertexShaderFieldAttributes ? interleavedLength + _ShaderProgram.coord_count : interleavedLength;
+          interleavedLength = 2 /* COLOR */ & this._vertexShaderFieldAttributes ? interleavedLength + 4 : interleavedLength;
           let currOffset = 0;
-          if (1 /* COORDINATES */ & vertexData) {
+          if (1 /* COORDINATES */ & this._vertexShaderFieldAttributes) {
             const cordLoc = this.vertexShader.source_attribs["coordinates"].location();
             Engine3D_default.inst.GL.vertexAttribPointer(cordLoc, _ShaderProgram.coord_count, WebGL2RenderingContext.FLOAT, false, interleavedLength * Float32Array.BYTES_PER_ELEMENT, 0);
             Engine3D_default.inst.GL.enableVertexAttribArray(cordLoc);
             currOffset += _ShaderProgram.coord_count;
           }
-          if (2 /* COLOR */ & vertexData) {
+          if (2 /* COLOR */ & this._vertexShaderFieldAttributes) {
             const colorLoc = this.vertexShader.source_attribs["color"].location();
             Engine3D_default.inst.GL.vertexAttribPointer(colorLoc, _ShaderProgram.color_count, WebGL2RenderingContext.FLOAT, false, interleavedLength * Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
             Engine3D_default.inst.GL.enableVertexAttribArray(colorLoc);
@@ -758,10 +808,10 @@
     }
   });
 
-  // src/engine/Rendering/Shaders/Buffer.ts
+  // src/engine/rendering/shaders/Buffer.ts
   var Buffer2, Buffer_default;
   var init_Buffer = __esm({
-    "src/engine/Rendering/Shaders/Buffer.ts"() {
+    "src/engine/rendering/shaders/Buffer.ts"() {
       init_Engine3D();
       Buffer2 = class {
         /*
@@ -822,15 +872,15 @@
     }
   });
 
-  // src/engine/Rendering/Mesh.ts
+  // src/engine/rendering/Mesh.ts
   var Mesh, Mesh_default;
   var init_Mesh = __esm({
-    "src/engine/Rendering/Mesh.ts"() {
+    "src/engine/rendering/Mesh.ts"() {
       init_Buffer();
       init_Engine3D();
       init_ShaderProgram();
-      init_Mat4();
       init_Time();
+      init_Mat4();
       Mesh = class _Mesh {
         verts;
         indis;
@@ -862,59 +912,35 @@
             hwidth,
             -hheight,
             -hdepth,
-            1,
-            0,
-            0,
-            1,
+            //1.0, 0.0, 0.0, 1.0,
             -hwidth,
             -hheight,
             -hdepth,
-            0,
-            1,
-            0,
-            1,
+            //0.0, 1.0, 0.0, 1.0,
             -hwidth,
             hheight,
             -hdepth,
-            0,
-            0,
-            1,
-            1,
+            //0.0, 0.0, 1.0, 1.0,
             hwidth,
             hheight,
             -hdepth,
-            1,
-            1,
-            0,
-            1,
+            //1.0, 1.0, 0.0, 1.0,
             hwidth,
             -hheight,
             hdepth,
-            1,
-            0,
-            1,
-            1,
+            //1.0, 0.0, 1.0, 1.0,
             -hwidth,
             -hheight,
             hdepth,
-            0,
-            1,
-            1,
-            1,
+            //0.0, 1.0, 1.0, 1.0,
             -hwidth,
             hheight,
             hdepth,
-            0.5,
-            0.5,
-            1,
-            1,
+            //0.5, 0.5, 1.0, 1.0,
             hwidth,
             hheight,
-            hdepth,
-            1,
-            1,
-            0.5,
-            1
+            hdepth
+            //1.0, 1.0, 0.5, 1.0,
           ];
           let indis = [
             // clockwise winding
@@ -964,7 +990,9 @@
             5,
             4
           ];
-          return new _Mesh(shaderProgram, verts, indis);
+          const mesh = new _Mesh(shaderProgram, verts, indis);
+          mesh.windingOrder = WebGL2RenderingContext.CCW;
+          return mesh;
         }
         /**
          * Parse the given text as the body of an obj file. (Expecting counter-clockwise winding)
@@ -1035,7 +1063,7 @@
           ShaderProgram_default.UnloadAny();
         }
         RenderOnce() {
-          this.shaderProgram.setVertexAttributesToBuffer(this.shaderProgram.vertexShaderFieldAttributes);
+          this.shaderProgram.setVertexAttributesToBuffer();
           if (this.isFaceCulling) {
             Engine3D_default.inst.GL.frontFace(this.windingOrder);
             Engine3D_default.inst.GL.cullFace(this.cullingFace);
@@ -1046,11 +1074,12 @@
           Engine3D_default.inst.GL.drawElements(WebGL2RenderingContext.TRIANGLES, this.n_indis, WebGL2RenderingContext.UNSIGNED_SHORT, 0);
         }
         rot_amt_xz = 0;
-        rot_speed_xz = 0.25;
+        rot_speed_xz = -0.125;
         RenderNext() {
           this.rot_amt_xz += this.rot_speed_xz * Time_default.deltaTime;
-          const mat = Mat4_default.translation(0, -0.5, 0).multiply(Mat4_default.rotation_xz(this.rot_amt_xz).multiply(Mat4_default.scale(0.25, 0.25, 0.25)));
-          this.shaderProgram.setUniform_Mat4x4(mat);
+          const mat = Mat4_default.translation(0, 0, 2.2).multiply(Mat4_default.rotation_xz(this.rot_amt_xz).multiply(Mat4_default.scale(1.5, 1.5, 1.5)));
+          this.shaderProgram.setModelUniform_Mat4x4(mat);
+          this.shaderProgram.setProjectionUniform_Mat4x4(Mat4_default.perspectiveUsingFrustum(0.25, Engine3D_default.inst.VIEWPORT.aspectRatio, 1, 10));
           this.RenderOnce();
         }
         /*
@@ -1075,15 +1104,30 @@
             this.cullingFace = cullingFace;
           }
         }
+        /*
+        
+            *  Sets the current meshes render winding order to clock wise
+        
+            public SetToWindingOrderCW():void {
+                this.windingOrder = WebGL2RenderingContext.CW;
+            }
+        
+        
+            *  Sets the current meshes render winding order to counter clock wise
+        
+            public SetToWindingOrderCWW():void {
+                this.windingOrder = WebGL2RenderingContext.CCW;
+            }
+            */
       };
       Mesh_default = Mesh;
     }
   });
 
-  // src/engine/Rendering/Renderer.ts
+  // src/engine/rendering/Renderer.ts
   var Renderer, Renderer_default;
   var init_Renderer = __esm({
-    "src/engine/Rendering/Renderer.ts"() {
+    "src/engine/rendering/Renderer.ts"() {
       init_Engine3D();
       init_ShaderProgram();
       init_Time();
@@ -1095,12 +1139,17 @@
         constructor() {
           new Time_default();
           this.shaderProgram = new ShaderProgram_default(1 /* COORDINATES */);
-          this.meshes = [];
-          Mesh_default.from_obj_file("teapot.obj", this.shaderProgram, this.AddToMeshes.bind(this));
-          this.initializeClearPresets();
-          this.initializePresets();
-          this.clear();
-          this.render();
+          this.shaderProgram.CompileAttachAndLink().then(
+            () => {
+              this.meshes = [];
+              const mesh1 = Mesh_default.box(this.shaderProgram, 1, 1, 1);
+              this.meshes.push(mesh1);
+              this.initializeClearPresets();
+              this.initializePresets();
+              this.clear();
+              this.render();
+            }
+          );
         }
         AddToMeshes(mesh) {
           this.meshes.push(mesh);
@@ -1137,21 +1186,58 @@
     }
   });
 
+  // src/engine/rendering/Viewport.ts
+  var Viewport, Viewport_default;
+  var init_Viewport = __esm({
+    "src/engine/rendering/Viewport.ts"() {
+      init_Engine3D();
+      Viewport = class {
+        canvas;
+        _width;
+        _height;
+        constructor(canvas, width = 640, height = 360) {
+          this.canvas = canvas;
+          this._width = width;
+          this._height = height;
+          this.SetResolution(this._width, this._height);
+        }
+        get width() {
+          return this._width;
+        }
+        get height() {
+          return this._height;
+        }
+        get aspectRatio() {
+          return this._width / this._height;
+        }
+        SetResolution(width, height) {
+          this.canvas.width = width;
+          this.canvas.height = height;
+          Engine3D_default.inst.GL.viewport(0, 0, width, height);
+        }
+      };
+      Viewport_default = Viewport;
+    }
+  });
+
   // src/engine/Engine3D.ts
   var Engine3D, Engine3D_default;
   var init_Engine3D = __esm({
     "src/engine/Engine3D.ts"() {
       init_Renderer();
+      init_Viewport();
       Engine3D = class _Engine3D {
         static instance;
         gl;
         renderer;
-        constructor(gl) {
+        viewport;
+        constructor(canvas) {
           if (_Engine3D.instance !== null && _Engine3D.instance !== void 0) {
             throw new Error("Cannot Have Two instances of Engine3D");
           }
           _Engine3D.instance = this;
-          this.gl = gl;
+          this.gl = canvas.getContext("webgl2");
+          this.viewport = new Viewport_default(canvas, 1280, 720);
           this.renderer = new Renderer_default();
         }
         //
@@ -1164,10 +1250,13 @@
           return _Engine3D.instance;
         }
         //
-        // Gets the Rendering Context Of The Engine
+        // Gets the rendering Context Of The Engine
         //
         get GL() {
           return this.gl;
+        }
+        get VIEWPORT() {
+          return this.viewport;
         }
       };
       Engine3D_default = Engine3D;
@@ -1179,8 +1268,7 @@
     "src/index.ts"() {
       init_Engine3D();
       var canvas = document.getElementById("canvas");
-      var gl = canvas.getContext("webgl2");
-      var engine = new Engine3D_default(gl);
+      var engine = new Engine3D_default(canvas);
     }
   });
   require_index();

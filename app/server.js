@@ -6,6 +6,7 @@ const port = 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
+app.use(express.static("src/engine/rendering/shaders/sources"));
 
 app.get("/", (req, res) => {
     res.sendFile(__dirname + "/views/index.html");

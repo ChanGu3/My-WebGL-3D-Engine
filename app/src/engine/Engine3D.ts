@@ -1,18 +1,23 @@
-import  Renderer from "./Rendering/Renderer";
+import  Renderer from "./rendering/Renderer";
+import Viewport from "./rendering/Viewport";
+import viewport from "./rendering/Viewport";
 
 class Engine3D {
     private static instance:Engine3D;
 
     private gl: WebGL2RenderingContext;
-
     private renderer: Renderer;
+    private viewport: Viewport;
 
-    constructor(gl: WebGL2RenderingContext) {
+    constructor(canvas: HTMLCanvasElement) {
         if(Engine3D.instance !== null && Engine3D.instance !== undefined) {
             throw new Error("Cannot Have Two instances of Engine3D");
         }
         Engine3D.instance = this;
-        this.gl = gl;
+        this.gl = (canvas.getContext('webgl2') as WebGL2RenderingContext);
+
+        this.viewport = new Viewport(canvas, 1280, 720);
+
         this.renderer = new Renderer();
     }
 
@@ -27,10 +32,14 @@ class Engine3D {
     }
 
     //
-    // Gets the Rendering Context Of The Engine
+    // Gets the rendering Context Of The Engine
     //
     public get GL(): WebGL2RenderingContext {
         return this.gl;
+    }
+
+    public get VIEWPORT(): Viewport {
+        return this.viewport;
     }
 }
 
