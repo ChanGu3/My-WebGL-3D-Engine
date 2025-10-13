@@ -3,6 +3,7 @@ import Engine3D from "../Engine3D";
 import ShaderProgram from "./shaders/ShaderProgram";
 import Time from "../Time";
 import Mat4, {UniqueMatrix} from "../linear-algebra/Mat4";
+import Vec2 from "../linear-algebra/Vec2";
 
 class Mesh {
     private verts:WebGLBuffer;

@@ -266,10 +266,78 @@
          * Returns the vector values as a string.
          */
         toString() {
-          return `${_Vec4.name}(x,y,z,w): [ ${this.x}, ${this.y}, ${this.z}, ${this.w} ]`;
+          return `${_Vec4}(x,y,z,w): [ ${this.x}, ${this.y}, ${this.z}, ${this.w} ]`;
         }
       };
       Vec4_default = Vec4;
+    }
+  });
+
+  // src/engine/linear-algebra/Vec2.ts
+  var Vec2, Vec2_default;
+  var init_Vec2 = __esm({
+    "src/engine/linear-algebra/Vec2.ts"() {
+      Vec2 = class _Vec2 {
+        x;
+        y;
+        constructor(vec2) {
+          this.x = vec2.X;
+          this.y = vec2.Y;
+        }
+        get X() {
+          return this.x;
+        }
+        get Y() {
+          return this.y;
+        }
+        /**
+         * Returns the length of this vector
+         */
+        get magnitude() {
+          return Math.sqrt(this.x * this.x + this.y * this.y);
+        }
+        /**
+         * Returns a normalized version of this vector
+         */
+        normalized() {
+          const magnitude = this.magnitude;
+          const normalizedVec4 = { X: this.x / magnitude, Y: this.y / magnitude };
+          return new _Vec2(normalizedVec4);
+        }
+        /**
+         * Returns the vector that is this vector scaled by the given scalar(magnitude).
+         **/
+        scaled(scalar) {
+          const scaledVec4 = {
+            X: this.x * scalar,
+            Y: this.y * scalar
+          };
+          return new _Vec2(scaledVec4);
+        }
+        /**
+         * Returns the vector sum between this and other.
+         */
+        add(other) {
+          const summedVec4 = {
+            X: this.x + other.x,
+            Y: this.y + other.y
+          };
+          return new _Vec2(summedVec4);
+        }
+        /**
+         * Returns the vector sub between this and other.
+         */
+        sub(other) {
+          return this.add(other.scaled(-1));
+        }
+        /**
+         * Returns the vector values as a string.
+         */
+        toString() {
+          return `${_Vec2}(x,y): [ ${this.x}, ${this.y} ]`;
+        }
+      };
+      Vec2_default = Vec2;
     }
   });
 
@@ -278,6 +346,7 @@
   var init_Mat4 = __esm({
     "src/engine/linear-algebra/Mat4.ts"() {
       init_Vec4();
+      init_Vec2();
       Mat4 = class _Mat4 {
         data;
         constructor(data) {
@@ -538,12 +607,12 @@
         /*
         *  creates a perspective matrix using the frustum matrix.
         */
-        static perspectiveUsingFrustum(tau, aspectRatio, near, far) {
+        static perspectiveUsingFrustum(tau, aspectRatio, near, far, offset = new Vec2_default({ X: 0, Y: 0 })) {
           const top = Math.tan(_Mat4.tau_to_radians(tau) / 2) * near;
           const bottom = -top;
           const right = top * aspectRatio;
           const left = -right;
-          return _Mat4.frustum(left, right, bottom, top, near, far);
+          return _Mat4.frustum(left - offset.X, right - offset.X, bottom - offset.Y, top - offset.Y, near, far);
         }
         /**
          returns the combination of two matrix transformation  in order,

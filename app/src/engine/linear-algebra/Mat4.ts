@@ -1,4 +1,5 @@
 import Vec4, { type Vec4_T } from "./Vec4";
+import Vec2, {Vec2_T} from "./Vec2";
 
 export type Matrix4x4 = [
     number, number, number, number,
@@ -181,7 +182,7 @@ class Mat4 {
     /*
     *  creates a perspective matrix using the frustum matrix.
     */
-    public static perspectiveUsingFrustum( tau:number, aspectRatio:number, near:number, far:number ): Mat4 {
+    public static perspectiveUsingFrustum( tau:number, aspectRatio:number, near:number, far:number, offset:Vec2|Vec2_T = new Vec2({X:0, Y:0}) ): Mat4 {
             // Gets top of the field of view by using camera view distance to the near plane
             // multiplied by the tangent of the fov in tau converted into radians divided by 2
             // to remove only half the angle for the top leaving the other half for the bottom
@@ -196,7 +197,7 @@ class Mat4 {
             const right = top * aspectRatio;
             const left = -right;
 
-            return Mat4.frustum(left, right, bottom, top, near, far);
+            return Mat4.frustum(left - offset.X, right - offset.X, bottom - offset.Y, top - offset.Y, near, far);
     }
 
     /**

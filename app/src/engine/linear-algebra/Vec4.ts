@@ -114,7 +114,7 @@ class Vec4 {
      * Returns the vector values as a string.
      */
 	public toString():string {
-		return `${Vec4.name}(x,y,z,w): [ ${this.x}, ${this.y}, ${this.z}, ${this.w} ]`;
+		return `${Vec4}(x,y,z,w): [ ${this.x}, ${this.y}, ${this.z}, ${this.w} ]`;
 	}
 }
 
