@@ -72,6 +72,31 @@ class Mat4 {
         return tau * Math.PI * 2;
     }
 
+    private getColumn(colNum:0|1|2|3):Vec4 {
+        return new Vec4({
+            X: this.data[0 + colNum],
+            Y: this.data[4 + colNum],
+            Z: this.data[8 + colNum],
+            W: this.data[12 + colNum],
+        })
+    }
+
+    public get vectorBasisX(): Vec4 {
+        return this.getColumn(0);
+    }
+
+    public get vectorBasisY(): Vec4 {
+        return this.getColumn(1);
+    }
+
+    public get vectorBasisZ(): Vec4 {
+        return this.getColumn(2);
+    }
+
+    public get vectorBasisW(): Vec4 {
+        return this.getColumn(3);
+    }
+
     /**
      * returns the identity matrix
      */
@@ -197,7 +222,10 @@ class Mat4 {
             const right = top * aspectRatio;
             const left = -right;
 
-            return Mat4.frustum(left - offset.X, right - offset.X, bottom - offset.Y, top - offset.Y, near, far);
+
+            return  Mat4.frustum(left - offset.X, right - offset.X, bottom - offset.Y, top - offset.Y, near, far);
+            //console.log(val.toString());
+            //return val;
     }
 
     /**
@@ -257,13 +285,13 @@ class Mat4 {
     public transform_vec( vec4: Vec4 ): Vec4 {
         const transformedVec4: Vec4_T = {
             // m0
-            x: this.data[0] * vec4.X + this.data[1] * vec4.Y + this.data[2] * vec4.Z + this.data[3] * vec4.W,
+            X: this.data[0] * vec4.X + this.data[1] * vec4.Y + this.data[2] * vec4.Z + this.data[3] * vec4.W,
             // m4
-            y: this.data[4] * vec4.X + this.data[5] * vec4.Y + this.data[6] * vec4.Z + this.data[7] * vec4.W,
+            Y: this.data[4] * vec4.X + this.data[5] * vec4.Y + this.data[6] * vec4.Z + this.data[7] * vec4.W,
             // m8
-            z: this.data[8] * vec4.X + this.data[9] * vec4.Y + this.data[10] * vec4.Z + this.data[11] * vec4.W,
+            Z: this.data[8] * vec4.X + this.data[9] * vec4.Y + this.data[10] * vec4.Z + this.data[11] * vec4.W,
             // m12
-            w: this.data[12] * vec4.X + this.data[13] * vec4.Y + this.data[14] * vec4.Z + this.data[15] * vec4.W,
+            W: this.data[12] * vec4.X + this.data[13] * vec4.Y + this.data[14] * vec4.Z + this.data[15] * vec4.W,
         };
         return new Vec4(transformedVec4);
     }

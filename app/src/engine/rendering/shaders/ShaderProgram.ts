@@ -18,7 +18,6 @@ class ShaderProgram {
     private static coord_count:number = 3;
     private static color_count:number = 4;
 
-
     private _vertexShader:Shader;
     private _fragmentShader:Shader;
 
@@ -75,11 +74,18 @@ class ShaderProgram {
 
     public Load():void {
         Engine3D.inst.GL.useProgram(this._program);
-        this.setModelUniform_Mat4x4(new mat4(UniqueMatrix.Identity)); // model view set to the Identity
+        this.setModelUniform_Mat4x4(new mat4(UniqueMatrix.Identity)); // model set to the Identity
+        this.setViewUniform_Mat4x4(new mat4(UniqueMatrix.Identity)); // view set to the Identity
+        this.setProjectionUniform_Mat4x4(new mat4(UniqueMatrix.Identity)); // view set to the Identity
     }
 
     public setModelUniform_Mat4x4(mat4: mat4):void {
-        const loc:WebGLUniformLocation = this.vertexShader.source_attribs['modelView'].location();
+        const loc:WebGLUniformLocation = this.vertexShader.source_attribs['model'].location();
+        Engine3D.inst.GL.uniformMatrix4fv( loc, true, mat4.getData());
+    }
+
+    public setViewUniform_Mat4x4(mat4: mat4):void {
+        const loc:WebGLUniformLocation = this.vertexShader.source_attribs['view'].location();
         Engine3D.inst.GL.uniformMatrix4fv( loc, true, mat4.getData());
     }
 

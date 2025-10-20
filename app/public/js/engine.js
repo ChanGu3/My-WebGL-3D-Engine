@@ -121,14 +121,16 @@
             case 1 /* COORDINATES */:
               super(Engine3D_default.inst.GL.VERTEX_SHADER, "coordinates");
               super.addSourceField(shaderProgram, "coordinates");
-              super.addSourceUniform(shaderProgram, "modelView");
+              super.addSourceUniform(shaderProgram, "model");
+              super.addSourceUniform(shaderProgram, "view");
               super.addSourceUniform(shaderProgram, "projection");
               break;
             case 3 /* COOR_COL */:
               super(Engine3D_default.inst.GL.VERTEX_SHADER, "coord_color");
               super.addSourceField(shaderProgram, "coordinates");
               super.addSourceField(shaderProgram, "color");
-              super.addSourceUniform(shaderProgram, "modelView");
+              super.addSourceUniform(shaderProgram, "model");
+              super.addSourceUniform(shaderProgram, "view");
               super.addSourceUniform(shaderProgram, "projection");
               break;
             default:
@@ -177,10 +179,10 @@
         z;
         w;
         constructor(vec4) {
-          this.x = vec4.x;
-          this.y = vec4.y;
-          this.z = vec4.z;
-          this.w = vec4.w ?? 0;
+          this.x = vec4.X;
+          this.y = vec4.Y;
+          this.z = vec4.Z;
+          this.w = vec4.W ?? 0;
         }
         get X() {
           return this.x;
@@ -205,7 +207,7 @@
          */
         normalized() {
           const magnitude = this.magnitude;
-          const normalizedVec4 = { x: this.x / magnitude, y: this.y / magnitude, z: this.z / magnitude, w: this.w / magnitude };
+          const normalizedVec4 = { X: this.x / magnitude, Y: this.y / magnitude, Z: this.z / magnitude, W: this.w / magnitude };
           return new _Vec4(normalizedVec4);
         }
         /**
@@ -213,10 +215,10 @@
          **/
         scaled(scalar) {
           const scaledVec4 = {
-            x: this.x * scalar,
-            y: this.y * scalar,
-            z: this.z * scalar,
-            w: this.w * scalar
+            X: this.x * scalar,
+            Y: this.y * scalar,
+            Z: this.z * scalar,
+            W: this.w * scalar
           };
           return new _Vec4(scaledVec4);
         }
@@ -225,22 +227,22 @@
          */
         dot(other) {
           const productVec4 = {
-            x: this.x * other.x,
-            y: this.y * other.y,
-            z: this.z * other.z,
-            w: this.w * other.w
+            X: this.x * other.x,
+            Y: this.y * other.y,
+            Z: this.z * other.z,
+            W: this.w * other.w
           };
-          return productVec4.x + productVec4.y + productVec4.z + productVec4.w;
+          return productVec4.X + productVec4.Y + productVec4.Z + productVec4.W;
         }
         /**
          * Returns the vector sum between this and other.
          */
         add(other) {
           const summedVec4 = {
-            x: this.x + other.x,
-            y: this.y + other.y,
-            z: this.z + other.z,
-            w: this.w + other.w
+            X: this.x + other.x,
+            Y: this.y + other.y,
+            Z: this.z + other.z,
+            W: this.w + other.w
           };
           return new _Vec4(summedVec4);
         }
@@ -255,10 +257,10 @@
          */
         cross(other) {
           const crossProductVec4 = {
-            x: this.y * other.z - this.z * other.y,
-            y: this.x * other.z - this.z * other.x,
-            z: this.x * other.y - this.y * other.x,
-            w: 0
+            X: this.y * other.z - this.z * other.y,
+            Y: this.x * other.z - this.z * other.x,
+            Z: this.x * other.y - this.y * other.x,
+            W: 0
           };
           return new _Vec4(crossProductVec4);
         }
@@ -442,6 +444,26 @@
         }
         static tau_to_radians(tau) {
           return tau * Math.PI * 2;
+        }
+        getColumn(colNum) {
+          return new Vec4_default({
+            X: this.data[0 + colNum],
+            Y: this.data[4 + colNum],
+            Z: this.data[8 + colNum],
+            W: this.data[12 + colNum]
+          });
+        }
+        get vectorBasisX() {
+          return this.getColumn(0);
+        }
+        get vectorBasisY() {
+          return this.getColumn(1);
+        }
+        get vectorBasisZ() {
+          return this.getColumn(2);
+        }
+        get vectorBasisW() {
+          return this.getColumn(3);
         }
         /**
          * returns the identity matrix
@@ -668,13 +690,13 @@
         transform_vec(vec4) {
           const transformedVec4 = {
             // m0
-            x: this.data[0] * vec4.X + this.data[1] * vec4.Y + this.data[2] * vec4.Z + this.data[3] * vec4.W,
+            X: this.data[0] * vec4.X + this.data[1] * vec4.Y + this.data[2] * vec4.Z + this.data[3] * vec4.W,
             // m4
-            y: this.data[4] * vec4.X + this.data[5] * vec4.Y + this.data[6] * vec4.Z + this.data[7] * vec4.W,
+            Y: this.data[4] * vec4.X + this.data[5] * vec4.Y + this.data[6] * vec4.Z + this.data[7] * vec4.W,
             // m8
-            z: this.data[8] * vec4.X + this.data[9] * vec4.Y + this.data[10] * vec4.Z + this.data[11] * vec4.W,
+            Z: this.data[8] * vec4.X + this.data[9] * vec4.Y + this.data[10] * vec4.Z + this.data[11] * vec4.W,
             // m12
-            w: this.data[12] * vec4.X + this.data[13] * vec4.Y + this.data[14] * vec4.Z + this.data[15] * vec4.W
+            W: this.data[12] * vec4.X + this.data[13] * vec4.Y + this.data[14] * vec4.Z + this.data[15] * vec4.W
           };
           return new Vec4_default(transformedVec4);
         }
@@ -811,9 +833,15 @@
         Load() {
           Engine3D_default.inst.GL.useProgram(this._program);
           this.setModelUniform_Mat4x4(new Mat4_default(1 /* Identity */));
+          this.setViewUniform_Mat4x4(new Mat4_default(1 /* Identity */));
+          this.setProjectionUniform_Mat4x4(new Mat4_default(1 /* Identity */));
         }
         setModelUniform_Mat4x4(mat4) {
-          const loc = this.vertexShader.source_attribs["modelView"].location();
+          const loc = this.vertexShader.source_attribs["model"].location();
+          Engine3D_default.inst.GL.uniformMatrix4fv(loc, true, mat4.getData());
+        }
+        setViewUniform_Mat4x4(mat4) {
+          const loc = this.vertexShader.source_attribs["view"].location();
           Engine3D_default.inst.GL.uniformMatrix4fv(loc, true, mat4.getData());
         }
         setProjectionUniform_Mat4x4(mat4) {
@@ -840,40 +868,6 @@
         }
       };
       ShaderProgram_default = ShaderProgram;
-    }
-  });
-
-  // src/engine/Time.ts
-  var Time, Time_default;
-  var init_Time = __esm({
-    "src/engine/Time.ts"() {
-      Time = class _Time {
-        static _inst;
-        static lastFrameUpTime = 0;
-        static _deltaTime = 0;
-        // delta time in seconds
-        constructor() {
-          if (_Time._inst == null) {
-            new Error("Can only have one instance of Time");
-          }
-          _Time._inst = this;
-          document.addEventListener("updateTimeEvent", _Time.update);
-        }
-        static update() {
-          if (_Time.lastFrameUpTime !== 0) {
-            _Time._deltaTime = _Time.MiliToSec(window.performance.now() - _Time.lastFrameUpTime);
-          }
-          _Time.lastFrameUpTime = window.performance.now();
-        }
-        // Convert Milliseconds into Seconds
-        static MiliToSec(milliseconds) {
-          return milliseconds / 1e3;
-        }
-        static get deltaTime() {
-          return this._deltaTime;
-        }
-      };
-      Time_default = Time;
     }
   });
 
@@ -941,6 +935,477 @@
     }
   });
 
+  // src/engine/linear-algebra/Vec3.ts
+  var Vec3, Vec3_default;
+  var init_Vec3 = __esm({
+    "src/engine/linear-algebra/Vec3.ts"() {
+      Vec3 = class _Vec3 {
+        x;
+        y;
+        z;
+        constructor(vec3 = { X: 0, Y: 0, Z: 0 }) {
+          this.x = vec3.X;
+          this.y = vec3.Y;
+          this.z = vec3.Z;
+        }
+        /**
+         * Returns the length of this vector
+         */
+        get magnitude() {
+          return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+        }
+        /**
+         * Returns a normalized version of this vector
+         */
+        normalized() {
+          const magnitude = this.magnitude;
+          const normalizedVec3 = { X: this.x / magnitude, Y: this.y / magnitude, Z: this.z / magnitude };
+          return new _Vec3(normalizedVec3);
+        }
+        /**
+         * Returns the vector that is this vector scaled by the given scalar(magnitude).
+         **/
+        scaled(scalar) {
+          const scaledVec4 = {
+            X: this.x * scalar,
+            Y: this.y * scalar,
+            Z: this.z * scalar
+          };
+          return new _Vec3(scaledVec4);
+        }
+        /**
+         * Returns the dot product between this vector and other
+         */
+        dot(other) {
+          const productVec4 = {
+            X: this.x * other.x,
+            Y: this.y * other.y,
+            Z: this.z * other.z
+          };
+          return productVec4.X + productVec4.Y + productVec4.Z;
+        }
+        /**
+         * Returns the vector sum between this and other.
+         */
+        add(other) {
+          const summedVec4 = {
+            X: this.x + other.x,
+            Y: this.y + other.y,
+            Z: this.z + other.z
+          };
+          return new _Vec3(summedVec4);
+        }
+        /**
+         * Returns the vector sub between this and other.
+         */
+        sub(other) {
+          return this.add(other.scaled(-1));
+        }
+        /**
+         * Returns the vector cross product between this and other.
+         */
+        cross(other) {
+          const crossProductVec4 = {
+            X: this.y * other.z - this.z * other.y,
+            Y: this.x * other.z - this.z * other.x,
+            Z: this.x * other.y - this.y * other.x
+          };
+          return new _Vec3(crossProductVec4);
+        }
+        /**
+         * Returns the vector values as a string.
+         */
+        toString() {
+          return `${_Vec3}(x,y,z,w): [ ${this.x}, ${this.y}, ${this.z} ]`;
+        }
+      };
+      Vec3_default = Vec3;
+    }
+  });
+
+  // src/engine/Transform.ts
+  var Transform, Transform_default;
+  var init_Transform = __esm({
+    "src/engine/Transform.ts"() {
+      init_Vec3();
+      init_Mat4();
+      Transform = class {
+        positon = new Vec3_default({ X: 0, Y: 0, Z: 0 });
+        scale = new Vec3_default({ X: 1, Y: 1, Z: 1 });
+        rotation = new Vec3_default({ X: 0, Y: 0, Z: 0 });
+        constructor() {
+        }
+        getModelMatrix() {
+          return Mat4_default.translation(this.positon.x, this.positon.y, this.positon.z).multiply(Mat4_default.rotation_xz(this.rotation.y).multiply(Mat4_default.rotation_yz(this.rotation.x).multiply(Mat4_default.rotation_xy(this.rotation.z).multiply(Mat4_default.scale(this.scale.x, this.scale.y, this.scale.z).multiply(Mat4_default.identity())))));
+        }
+        getCameraInverseModelMatrix() {
+          const scale = {
+            X: this.scale.x === 0 ? 0 : 1 / this.scale.x,
+            Y: this.scale.y === 0 ? 0 : 1 / this.scale.y,
+            Z: this.scale.z === 0 ? 0 : 1 / this.scale.z
+          };
+          const translationMat = Mat4_default.translation(-this.positon.x, -this.positon.y, -this.positon.z);
+          const rotationMat = Mat4_default.rotation_xy(-this.rotation.z).multiply(Mat4_default.rotation_yz(-this.rotation.x).multiply(Mat4_default.rotation_xz(-this.rotation.y)));
+          const scaleMat = Mat4_default.scale(scale.X, scale.Y, scale.Z);
+          return Mat4_default.identity().multiply(scaleMat.multiply(rotationMat.multiply(translationMat)));
+        }
+      };
+      Transform_default = Transform;
+    }
+  });
+
+  // src/engine/SceneObject.ts
+  var SceneObject, SceneObject_default;
+  var init_SceneObject = __esm({
+    "src/engine/SceneObject.ts"() {
+      init_Transform();
+      SceneObject = class {
+        mesh;
+        transform = new Transform_default();
+        constructor(mesh = null) {
+          this.mesh = mesh;
+        }
+        //abstract fixedUpdate():void;
+        //abstract update():void;
+        /*
+        *  renders the object every frame.
+        */
+        render() {
+          if (this.mesh !== null) {
+            this.mesh.render(this.transform);
+          }
+        }
+      };
+      SceneObject_default = SceneObject;
+    }
+  });
+
+  // src/engine/Time.ts
+  var Time, Time_default;
+  var init_Time = __esm({
+    "src/engine/Time.ts"() {
+      Time = class _Time {
+        static _inst;
+        static TICK_RATE = 60;
+        static MILI_SEC_PER_TICK = 1e3 / this.TICK_RATE;
+        static lastFrameUpTime = 0;
+        static _deltaTime = 0;
+        // delta time in seconds
+        constructor() {
+          if (_Time._inst == null) {
+            new Error("Can only have one instance of Time");
+          }
+          _Time._inst = this;
+          document.addEventListener("updateTimeEvent", _Time.update);
+        }
+        static update() {
+          if (_Time.lastFrameUpTime !== 0) {
+            _Time._deltaTime = _Time.MiliToSec(window.performance.now() - _Time.lastFrameUpTime);
+          }
+          _Time.lastFrameUpTime = window.performance.now();
+        }
+        // Convert Milliseconds into Seconds
+        static MiliToSec(milliseconds) {
+          return milliseconds / 1e3;
+        }
+        static get deltaTime() {
+          return this._deltaTime;
+        }
+        static get timeElapsed() {
+          return window.performance.now();
+        }
+        static get fixedTime() {
+          return _Time.MILI_SEC_PER_TICK / 1e3;
+        }
+      };
+      Time_default = Time;
+    }
+  });
+
+  // src/engine/InputDevices/Key.ts
+  var Key, Key_default;
+  var init_Key = __esm({
+    "src/engine/InputDevices/Key.ts"() {
+      Key = class {
+        _code;
+        _isPressed;
+        OnKeyUp = [];
+        OnKeyDown = [];
+        constructor(code, isPressed = false) {
+          this._code = code;
+          document.addEventListener("keydown", this.keyPressed.bind(this));
+          document.addEventListener("keyup", this.keyReleased.bind(this));
+          this._isPressed = isPressed;
+        }
+        keyPressed(event) {
+          const code = event.code;
+          if (!this._isPressed) {
+            if (this.code === code) {
+              this._isPressed = true;
+              this.OnKeyDown.forEach(
+                (action) => {
+                  action.doAction(this);
+                }
+              );
+            }
+          }
+        }
+        keyReleased(event) {
+          const code = event.code;
+          if (this._isPressed) {
+            if (this.code === code) {
+              this._isPressed = false;
+              this.OnKeyUp.forEach(
+                (action) => {
+                  action.doAction(this);
+                }
+              );
+            }
+          }
+        }
+        /*
+         * adds a listener for when the key is pressed
+         * returns: whether the listener was successfully added as true otherwise false
+        */
+        addKeyDownListener(action) {
+          const exists = this.OnKeyDown.every((exAction) => {
+            exAction.name !== action.name;
+          });
+          if (!exists) {
+            return false;
+          }
+          this.OnKeyDown.push(action);
+          return true;
+        }
+        /*
+         * removes a listener for when the key is pressed
+         * returns: whether the listener was successfully removed as true otherwise false
+        */
+        removeKeyDownListener(name) {
+          let isDeleted = false;
+          this.OnKeyDown = this.OnKeyDown.filter((data) => {
+            if (!isDeleted) {
+              if (data.name !== name) {
+                isDeleted = true;
+                return false;
+              } else {
+                return true;
+              }
+            } else {
+              return true;
+            }
+          });
+          return isDeleted;
+        }
+        /*
+         * adds a listener for when the key is released
+         * returns: whether the listener was successfully added as true otherwise false
+        */
+        addKeyUpListener(action) {
+          const exists = this.OnKeyUp.every((exAction) => {
+            exAction.name !== action.name;
+          });
+          if (!exists) {
+            return false;
+          }
+          this.OnKeyUp.push(action);
+          return true;
+        }
+        /*
+         * removes a listener for when the key is released
+         * returns: whether the listener was successfully removed as true otherwise false
+        */
+        removeKeyUpListener(name) {
+          let isDeleted = false;
+          this.OnKeyUp = this.OnKeyUp.filter((data) => {
+            if (!isDeleted) {
+              if (data.name !== name) {
+                isDeleted = true;
+                return false;
+              } else {
+                return true;
+              }
+            } else {
+              return true;
+            }
+          });
+          return isDeleted;
+        }
+        get code() {
+          return this._code;
+        }
+        /*
+         * whether the key is currently being pressed or not
+        */
+        get isPressing() {
+          return this._isPressed;
+        }
+        /*
+         * whether the key is down or not
+        */
+        get isKeyDown() {
+          return this._isPressed;
+        }
+        /*
+         * whether the key is up or not
+        */
+        get isKeyUp() {
+          return !this._isPressed;
+        }
+      };
+      Key_default = Key;
+    }
+  });
+
+  // src/engine/InputDevices/Keyboard.ts
+  var Keyboard, Keyboard_default;
+  var init_Keyboard = __esm({
+    "src/engine/InputDevices/Keyboard.ts"() {
+      init_Key();
+      Keyboard = class _Keyboard {
+        static _inst;
+        static keys = {};
+        constructor() {
+          if (_Keyboard._inst === null) {
+            new Error("Can only have one instance of Keyboard");
+          }
+          _Keyboard._inst = this;
+          document.addEventListener("keydown", _Keyboard.addKeyOnPress);
+        }
+        /*
+         * when a key is pressed, and it does not exist, adds it to the available keys
+        */
+        static addKeyOnPress(event) {
+          const code = event.code;
+          console.log(code);
+          if (!_Keyboard.keys[code]) {
+            _Keyboard.keys[code] = new Key_default(code, true);
+          }
+        }
+        /*
+         * gets a key by its code name from KeyboardEvent; (adds a key that has not been added if it does not exist)
+        */
+        static getKey(code) {
+          if (!_Keyboard.keys[code]) {
+            _Keyboard.keys[code] = new Key_default(code);
+          }
+          return _Keyboard.keys[code];
+        }
+      };
+      Keyboard_default = Keyboard;
+    }
+  });
+
+  // src/engine/Scene.ts
+  var Scene, Scene_default;
+  var init_Scene = __esm({
+    "src/engine/Scene.ts"() {
+      init_SceneObject();
+      init_Engine3D();
+      init_Time();
+      init_Vec3();
+      init_Keyboard();
+      Scene = class _Scene {
+        static editorCamera = new SceneObject_default();
+        _objects = [];
+        constructor() {
+          Keyboard_default.getKey("KeyA").addKeyDownListener({ name: "print_key", doAction(key) {
+            console.log(key.code);
+          } });
+          const cubeObj1 = new SceneObject_default(Engine3D_default.inst.RENDERER.Meshes["cube"]);
+          this._objects.push(cubeObj1);
+          cubeObj1.transform.positon = new Vec3_default({ X: 0, Y: 0, Z: 0.4 });
+          cubeObj1.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
+          const cubeObj2 = new SceneObject_default(Engine3D_default.inst.RENDERER.Meshes["cube"]);
+          this._objects.push(cubeObj2);
+          cubeObj2.transform.positon = new Vec3_default({ X: 0, Y: 0, Z: -0.4 });
+          cubeObj2.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
+          const cubeObj3 = new SceneObject_default(Engine3D_default.inst.RENDERER.Meshes["cube"]);
+          this._objects.push(cubeObj3);
+          cubeObj3.transform.positon = new Vec3_default({ X: 0.4, Y: 0, Z: 0 });
+          cubeObj3.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
+          const cubeObj4 = new SceneObject_default(Engine3D_default.inst.RENDERER.Meshes["cube"]);
+          this._objects.push(cubeObj4);
+          cubeObj4.transform.positon = new Vec3_default({ X: -0.4, Y: 0, Z: 0 });
+          cubeObj4.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
+          const cubeObj5 = new SceneObject_default(Engine3D_default.inst.RENDERER.Meshes["loaded"]);
+          this._objects.push(cubeObj5);
+          cubeObj5.transform.positon = new Vec3_default({ X: 0, Y: 5, Z: 0 });
+        }
+        rot_amt_xz = 0;
+        rot_speed_xz = -0.125;
+        fixedUpdate() {
+          this.rot_amt_xz += this.rot_speed_xz * Time_default.fixedTime;
+          this._objects[4].transform.rotation = new Vec3_default({ X: 0, Y: this.rot_amt_xz, Z: 0 });
+          this.CameraMovement();
+        }
+        static normalSpeed = 0.125;
+        static spd = 0;
+        CameraMovement() {
+          _Scene.spd = _Scene.normalSpeed;
+          if (Keyboard_default.getKey("ShiftLeft").isPressing) {
+            _Scene.spd *= 2.5;
+          }
+          const cameraMatrix = _Scene.editorCamera.transform.getModelMatrix();
+          const camFacingDirectionNorm = cameraMatrix.vectorBasisZ.normalized();
+          const camDirection = new Vec3_default({ X: camFacingDirectionNorm.X, Y: camFacingDirectionNorm.Y, Z: camFacingDirectionNorm.Z });
+          const camFacingPerpDirectionNorm = cameraMatrix.vectorBasisX.normalized();
+          const camPerpDirection = new Vec3_default({ X: camFacingPerpDirectionNorm.X, Y: camFacingPerpDirectionNorm.Y, Z: camFacingPerpDirectionNorm.Z });
+          let positionChange = new Vec3_default({ X: 0, Y: 0, Z: 0 });
+          if (Keyboard_default.getKey("KeyW").isPressing) {
+            positionChange = positionChange.add(camDirection.scaled(_Scene.spd * Time_default.fixedTime));
+          }
+          if (Keyboard_default.getKey("KeyS").isPressing) {
+            positionChange = positionChange.add(camDirection.scaled(_Scene.spd * Time_default.fixedTime).scaled(-1));
+          }
+          if (Keyboard_default.getKey("KeyA").isPressing) {
+            positionChange = positionChange.add(camPerpDirection.scaled(_Scene.spd * Time_default.fixedTime).scaled(-1));
+          }
+          if (Keyboard_default.getKey("KeyD").isPressing) {
+            positionChange = positionChange.add(camPerpDirection.scaled(_Scene.spd * Time_default.fixedTime));
+          }
+          _Scene.editorCamera.transform.positon = _Scene.editorCamera.transform.positon.add(positionChange);
+          if (Keyboard_default.getKey("ControlLeft").isPressing) {
+            _Scene.editorCamera.transform.positon.y -= _Scene.spd * Time_default.fixedTime;
+          }
+          if (Keyboard_default.getKey("Space").isPressing) {
+            _Scene.editorCamera.transform.positon.y += _Scene.spd * Time_default.fixedTime;
+          }
+          if (Keyboard_default.getKey("KeyQ").isPressing) {
+            _Scene.editorCamera.transform.rotation.z -= _Scene.spd * Time_default.fixedTime;
+          }
+          if (Keyboard_default.getKey("KeyE").isPressing) {
+            _Scene.editorCamera.transform.rotation.z += _Scene.spd * Time_default.fixedTime;
+          }
+          if (Keyboard_default.getKey("ArrowUp").isPressing) {
+            if (_Scene.editorCamera.transform.rotation.x < 0.24) {
+              _Scene.editorCamera.transform.rotation.x += _Scene.spd * Time_default.fixedTime;
+            } else {
+              _Scene.editorCamera.transform.rotation.x = 0.24;
+            }
+          }
+          if (Keyboard_default.getKey("ArrowDown").isPressing) {
+            if (_Scene.editorCamera.transform.rotation.x > -0.24) {
+              _Scene.editorCamera.transform.rotation.x -= _Scene.spd * Time_default.fixedTime;
+            } else {
+              _Scene.editorCamera.transform.rotation.x = -0.24;
+            }
+          }
+          if (Keyboard_default.getKey("ArrowLeft").isPressing) {
+            _Scene.editorCamera.transform.rotation.y += _Scene.spd * Time_default.fixedTime;
+          }
+          if (Keyboard_default.getKey("ArrowRight").isPressing) {
+            _Scene.editorCamera.transform.rotation.y -= _Scene.spd * Time_default.fixedTime;
+          }
+        }
+        get objects() {
+          return this._objects;
+        }
+      };
+      Scene_default = Scene;
+    }
+  });
+
   // src/engine/rendering/Mesh.ts
   var Mesh, Mesh_default;
   var init_Mesh = __esm({
@@ -948,8 +1413,8 @@
       init_Buffer();
       init_Engine3D();
       init_ShaderProgram();
-      init_Time();
       init_Mat4();
+      init_Scene();
       Mesh = class _Mesh {
         verts;
         indis;
@@ -1102,6 +1567,7 @@
         }
         /**
          * Asynchronously load the obj file as a mesh.
+         *  @deprecated Use `get_obj_from_file()` instead.
          */
         static from_obj_file(file_name, shaderProgram, f) {
           let request = new XMLHttpRequest();
@@ -1119,19 +1585,27 @@
           request.open("GET", `objs/${file_name}`);
           request.send();
         }
+        // @ts-ignore
+        static async get_obj_from_file(file_name, shaderProgram) {
+          const resp = await fetch(`objs/${file_name}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "text/plain"
+            }
+          });
+          if (!resp.ok) {
+            throw new Error("HTTP error when opening .obj file: ");
+          }
+          const objFileAsString = await resp.text();
+          return _Mesh.from_obj_text(shaderProgram, objFileAsString);
+        }
         /*
         *  renders the mesh every frame.
         */
-        render() {
+        render(transform) {
           this.shaderProgram.Load();
           const prevVertBuffer = Buffer_default.bindArrayBuffer(this.verts);
           const prevElemBuffer = Buffer_default.bindElementArrayBuffer(this.indis);
-          this.RenderNext();
-          Buffer_default.bindArrayBuffer(prevVertBuffer);
-          Buffer_default.bindElementArrayBuffer(prevElemBuffer);
-          ShaderProgram_default.UnloadAny();
-        }
-        RenderOnce() {
           this.shaderProgram.setVertexAttributesToBuffer();
           if (this.isFaceCulling) {
             Engine3D_default.inst.GL.frontFace(this.windingOrder);
@@ -1140,16 +1614,17 @@
           } else {
             Engine3D_default.inst.GL.disable(WebGL2RenderingContext.CULL_FACE);
           }
+          this.shaderProgram.setProjectionUniform_Mat4x4(Mat4_default.perspectiveUsingFrustum(0.25, Engine3D_default.inst.VIEWPORT.aspectRatio, 0.125, 10));
+          if (Scene_default.editorCamera !== void 0) {
+            this.shaderProgram.setViewUniform_Mat4x4(Scene_default.editorCamera.transform.getCameraInverseModelMatrix());
+          } else {
+            this.shaderProgram.setViewUniform_Mat4x4(Mat4_default.identity());
+          }
+          this.shaderProgram.setModelUniform_Mat4x4(transform.getModelMatrix());
           Engine3D_default.inst.GL.drawElements(WebGL2RenderingContext.TRIANGLES, this.n_indis, WebGL2RenderingContext.UNSIGNED_SHORT, 0);
-        }
-        rot_amt_xz = 0;
-        rot_speed_xz = -0.125;
-        RenderNext() {
-          this.rot_amt_xz += this.rot_speed_xz * Time_default.deltaTime;
-          const mat = Mat4_default.translation(0, 0, 2.2).multiply(Mat4_default.rotation_xz(this.rot_amt_xz).multiply(Mat4_default.scale(1.5, 1.5, 1.5)));
-          this.shaderProgram.setModelUniform_Mat4x4(mat);
-          this.shaderProgram.setProjectionUniform_Mat4x4(Mat4_default.perspectiveUsingFrustum(0.25, Engine3D_default.inst.VIEWPORT.aspectRatio, 1, 10));
-          this.RenderOnce();
+          Buffer_default.bindArrayBuffer(prevVertBuffer);
+          Buffer_default.bindElementArrayBuffer(prevElemBuffer);
+          ShaderProgram_default.UnloadAny();
         }
         /*
         *  Enables Culling For Mesh
@@ -1199,20 +1674,15 @@
     "src/engine/rendering/Renderer.ts"() {
       init_Engine3D();
       init_ShaderProgram();
-      init_Time();
       init_Mesh();
       Renderer = class _Renderer {
         static updateTimeEvent = new Event("updateTimeEvent");
-        meshes;
+        meshes = {};
         shaderProgram;
         constructor() {
-          new Time_default();
           this.shaderProgram = new ShaderProgram_default(1 /* COORDINATES */);
           this.shaderProgram.CompileAttachAndLink().then(
             () => {
-              this.meshes = [];
-              const mesh1 = Mesh_default.box(this.shaderProgram, 1, 1, 1);
-              this.meshes.push(mesh1);
               this.initializeClearPresets();
               this.initializePresets();
               this.clear();
@@ -1220,8 +1690,10 @@
             }
           );
         }
-        AddToMeshes(mesh) {
-          this.meshes.push(mesh);
+        // @ts-ignore
+        async LoadMeshes() {
+          this.AddToMeshes(await Mesh_default.get_obj_from_file("teapot.obj", this.shaderProgram));
+          this.meshes["cube"] = Mesh_default.box(this.shaderProgram, 1, 1, 1);
         }
         //
         // Initializes clearing values for gl renderer
@@ -1237,13 +1709,19 @@
         initializePresets() {
           Engine3D_default.inst.GL.enable(WebGL2RenderingContext.DEPTH_TEST);
         }
+        get Meshes() {
+          return this.meshes;
+        }
+        AddToMeshes(mesh) {
+          this.meshes["loaded"] = mesh;
+        }
         render() {
           document.dispatchEvent(_Renderer.updateTimeEvent);
           const aniFrameID = window.requestAnimationFrame(this.render.bind(this));
           this.clear();
           try {
-            for (const mesh of this.meshes) {
-              mesh.render();
+            for (const sceneObject of Engine3D_default.inst.SCENE.objects) {
+              sceneObject.render();
             }
           } catch (e) {
             console.error(e);
@@ -1262,9 +1740,28 @@
       init_Engine3D();
       Viewport = class {
         canvas;
-        _width;
-        _height;
+        _width = 0;
+        _prevWidth = 0;
+        _height = 0;
+        _prevHeight = 0;
+        isFullScreen = false;
         constructor(canvas, width = 640, height = 360) {
+          canvas.addEventListener("click", () => {
+            canvas.requestPointerLock();
+            canvas.requestFullscreen();
+          });
+          document.addEventListener("fullscreenchange", (e) => {
+            if (!this.isFullScreen) {
+              this.isFullScreen = true;
+              this.SetResolution(window.screen.availWidth, window.screen.availHeight);
+            } else {
+              this.isFullScreen = false;
+              this.SetResolution(this._prevWidth, this._prevHeight);
+            }
+          });
+          window.addEventListener("beforeunload", (e) => {
+            e.preventDefault();
+          });
           this.canvas = canvas;
           this._width = width;
           this._height = height;
@@ -1280,8 +1777,12 @@
           return this._width / this._height;
         }
         SetResolution(width, height) {
+          this._prevWidth = this._width;
+          this._prevHeight = this._height;
           this.canvas.width = width;
           this.canvas.height = height;
+          this._width = width;
+          this._height = height;
           Engine3D_default.inst.GL.viewport(0, 0, width, height);
         }
       };
@@ -1295,19 +1796,32 @@
     "src/engine/Engine3D.ts"() {
       init_Renderer();
       init_Viewport();
+      init_Keyboard();
+      init_Scene();
+      init_Time();
       Engine3D = class _Engine3D {
         static instance;
         gl;
         renderer;
         viewport;
+        scene;
         constructor(canvas) {
           if (_Engine3D.instance !== null && _Engine3D.instance !== void 0) {
             throw new Error("Cannot Have Two instances of Engine3D");
           }
           _Engine3D.instance = this;
+          new Time_default();
+          new Keyboard_default();
           this.gl = canvas.getContext("webgl2");
-          this.viewport = new Viewport_default(canvas, 1280, 720);
+          this.viewport = new Viewport_default(canvas, 800, 450);
           this.renderer = new Renderer_default();
+          this.renderer.LoadMeshes().then(() => {
+            this.scene = new Scene_default();
+          });
+          setInterval(this.fixedUpdate.bind(this), Time_default.MILI_SEC_PER_TICK);
+        }
+        fixedUpdate() {
+          this.scene.fixedUpdate();
         }
         //
         // Gets the instance of the current running engine
@@ -1326,6 +1840,12 @@
         }
         get VIEWPORT() {
           return this.viewport;
+        }
+        get SCENE() {
+          return this.scene;
+        }
+        get RENDERER() {
+          return this.renderer;
         }
       };
       Engine3D_default = Engine3D;

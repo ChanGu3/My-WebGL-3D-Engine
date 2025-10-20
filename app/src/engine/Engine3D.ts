@@ -1,6 +1,10 @@
 import  Renderer from "./rendering/Renderer";
 import Viewport from "./rendering/Viewport";
-import viewport from "./rendering/Viewport";
+import Keyboard from "./InputDevices/Keyboard";
+import Key from "./InputDevices/Key";
+import Scene from "./Scene";
+import SceneObject from "./SceneObject";
+import Time from "./Time";
 
 class Engine3D {
     private static instance:Engine3D;
@@ -8,17 +12,34 @@ class Engine3D {
     private gl: WebGL2RenderingContext;
     private renderer: Renderer;
     private viewport: Viewport;
+    private scene: Scene;
 
     constructor(canvas: HTMLCanvasElement) {
         if(Engine3D.instance !== null && Engine3D.instance !== undefined) {
             throw new Error("Cannot Have Two instances of Engine3D");
         }
         Engine3D.instance = this;
-        this.gl = (canvas.getContext('webgl2') as WebGL2RenderingContext);
+        new Time();
+        new Keyboard();
 
-        this.viewport = new Viewport(canvas, 1280, 720);
+        this.gl = (canvas.getContext('webgl2') as WebGL2RenderingContext);
+        this.viewport = new Viewport(canvas, 800, 450);
 
         this.renderer = new Renderer();
+        this.renderer.LoadMeshes().then(() => {
+            this.scene = new Scene();
+        })
+
+        setInterval(this.fixedUpdate.bind(this), Time.MILI_SEC_PER_TICK);
+    }
+
+    private fixedUpdate():void {
+        this.scene.fixedUpdate();
+        /*
+        for (const sceneObject of this.scene.objects) {
+            sceneObject.fixedUpdate();
+        }
+        */
     }
 
     //
@@ -40,6 +61,14 @@ class Engine3D {
 
     public get VIEWPORT(): Viewport {
         return this.viewport;
+    }
+
+    public get SCENE(): Scene {
+        return this.scene;
+    }
+
+    public get RENDERER(): Renderer {
+        return this.renderer;
     }
 }
 

@@ -4,8 +4,13 @@ import ShaderProgram from "./shaders/ShaderProgram";
 import Time from "../Time";
 import Mat4, {UniqueMatrix} from "../linear-algebra/Mat4";
 import Vec2 from "../linear-algebra/Vec2";
+import Viewport from "./Viewport";
+import Transform from "../Transform";
+import mat4 from "../linear-algebra/Mat4";
+import Scene from "../Scene";
 
 class Mesh {
+
     private verts:WebGLBuffer;
     private indis:WebGLBuffer;
     private n_verts: number;
@@ -25,7 +30,6 @@ class Mesh {
         this.n_indis = indices.length;
 
         this.windingOrder = windingOrder;
-
         this.shaderProgram = shaderProgram;
     }
 
@@ -118,6 +122,7 @@ class Mesh {
 
     /**
      * Asynchronously load the obj file as a mesh.
+     *  @deprecated Use `get_obj_from_file()` instead.
      */
     static from_obj_file(file_name:string, shaderProgram: ShaderProgram, f ) {
         let request = new XMLHttpRequest();
@@ -142,23 +147,32 @@ class Mesh {
         request.send();                   // execute request
     }
 
+    // @ts-ignore
+    public static async get_obj_from_file(file_name:string, shaderProgram: ShaderProgram ): Promise<Mesh> {
+        const resp:Response = await fetch(`objs/${file_name}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'text/plain',
+            }
+        });
+
+        if(!resp.ok) {
+            throw new Error( 'HTTP error when opening .obj file: ');
+        }
+
+        const objFileAsString:string  = await resp.text();
+
+        return Mesh.from_obj_text(shaderProgram, objFileAsString);
+    }
+
     /*
     *  renders the mesh every frame.
     */
-    public render ():void {
+    public render (transform: Transform):void {
         this.shaderProgram.Load();
         const prevVertBuffer = Buffer.bindArrayBuffer(this.verts);
         const prevElemBuffer = Buffer.bindElementArrayBuffer(this.indis);
 
-        this.RenderNext();
-
-        Buffer.bindArrayBuffer(prevVertBuffer);
-        Buffer.bindElementArrayBuffer(prevElemBuffer);
-        ShaderProgram.UnloadAny();
-    }
-
-    public RenderOnce():void
-    {
         this.shaderProgram.setVertexAttributesToBuffer();
 
         if (this.isFaceCulling) {
@@ -170,21 +184,24 @@ class Mesh {
             Engine3D.inst.GL.disable(WebGL2RenderingContext.CULL_FACE);
         }
 
+        this.shaderProgram.setProjectionUniform_Mat4x4(Mat4.perspectiveUsingFrustum(0.25, Engine3D.inst.VIEWPORT.aspectRatio, 0.125, 10));
+
+
+        if(Scene.editorCamera !== undefined) {
+            //console.log(Scene.editorCamera.transform.getInverseModelMatrix());
+            this.shaderProgram.setViewUniform_Mat4x4(Scene.editorCamera.transform.getCameraInverseModelMatrix());
+        } else {
+            this.shaderProgram.setViewUniform_Mat4x4(Mat4.identity());
+        }
+
+
+        this.shaderProgram.setModelUniform_Mat4x4(transform.getModelMatrix());
+
         Engine3D.inst.GL.drawElements(WebGL2RenderingContext.TRIANGLES, this.n_indis, WebGL2RenderingContext.UNSIGNED_SHORT, 0);
-    }
 
-    private rot_amt_xz:number = 0.0;
-    private readonly rot_speed_xz:number = -0.125;
-    public RenderNext() {
-        this.rot_amt_xz += this.rot_speed_xz * Time.deltaTime;
-
-        //const mat:mat4 = mat4.translation(0,-0.5,0).multiply(mat4.rotation_xz(this.rot_amt_xz).multiply(mat4.scale(0.25,0.25,0.25)));
-        const mat:Mat4 = Mat4.translation(0,0,2.2).multiply(Mat4.rotation_xz(this.rot_amt_xz).multiply(Mat4.scale(1.5,1.5,1.5)))
-        this.shaderProgram.setModelUniform_Mat4x4(mat);
-        this.shaderProgram.setProjectionUniform_Mat4x4(Mat4.perspectiveUsingFrustum(0.25, Engine3D.inst.VIEWPORT.aspectRatio, 1, 10));
-
-
-        this.RenderOnce();
+        Buffer.bindArrayBuffer(prevVertBuffer);
+        Buffer.bindElementArrayBuffer(prevElemBuffer);
+        ShaderProgram.UnloadAny();
     }
 
     /*

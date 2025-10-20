@@ -9,14 +9,16 @@ class VertexShader extends Shader {
             case VertexShaderFieldAttributes.COORDINATES:
                 super(Engine3D.inst.GL.VERTEX_SHADER, "coordinates");
                 super.addSourceField(shaderProgram, "coordinates");
-                super.addSourceUniform(shaderProgram, "modelView");
+                super.addSourceUniform(shaderProgram, "model");
+                super.addSourceUniform(shaderProgram, "view");
                 super.addSourceUniform(shaderProgram, "projection");
                 break;
             case VertexShaderFieldAttributes.COOR_COL:
                 super(Engine3D.inst.GL.VERTEX_SHADER, "coord_color");
                 super.addSourceField(shaderProgram, "coordinates");
                 super.addSourceField(shaderProgram, "color");
-                super.addSourceUniform(shaderProgram, "modelView");
+                super.addSourceUniform(shaderProgram, "model");
+                super.addSourceUniform(shaderProgram, "view");
                 super.addSourceUniform(shaderProgram, "projection");
                 break;
             default:

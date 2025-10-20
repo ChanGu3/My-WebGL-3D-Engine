@@ -1,8 +1,13 @@
 class Time {
     private static _inst:Time;
 
+    public static readonly TICK_RATE: number = 60;
+    public static readonly MILI_SEC_PER_TICK: number = 1000 / this.TICK_RATE;
+
     private static lastFrameUpTime: number = 0.0;
     private static _deltaTime: number = 0.0; // delta time in seconds
+
+
 
     constructor() {
         if(Time._inst == null) {
@@ -27,6 +32,14 @@ class Time {
 
     public static get deltaTime():number {
         return this._deltaTime;
+    }
+
+    public static get timeElapsed():number {
+        return window.performance.now();
+    }
+
+    public static get fixedTime():number {
+        return Time.MILI_SEC_PER_TICK / 1000;
     }
 }
 

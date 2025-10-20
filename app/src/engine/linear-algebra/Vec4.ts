@@ -1,8 +1,8 @@
 export type Vec4_T = {
-    x: number,
-    y: number,
-    z: number,
-    w: number,
+    X: number,
+    Y: number,
+    Z: number,
+    W: number,
 };
 
 class Vec4 {
@@ -13,10 +13,10 @@ class Vec4 {
     private readonly w: number;
 
     constructor( vec4: Vec4_T ) {
-        this.x = vec4.x;
-        this.y = vec4.y;
-        this.z = vec4.z;
-        this.w = vec4.w ?? 0;
+        this.x = vec4.X;
+        this.y = vec4.Y;
+        this.z = vec4.Z;
+        this.w = vec4.W ?? 0;
     }
 
     public get X(): number {
@@ -47,7 +47,7 @@ class Vec4 {
      */
     public normalized(): Vec4 {
         const magnitude:number = this.magnitude;
-        const normalizedVec4: Vec4_T = { x:this.x/magnitude, y:this.y/magnitude, z:this.z/magnitude, w:this.w/magnitude };
+        const normalizedVec4: Vec4_T = { X:this.x/magnitude, Y:this.y/magnitude, Z:this.z/magnitude, W:this.w/magnitude };
         return new Vec4(normalizedVec4);
     }
 
@@ -56,10 +56,10 @@ class Vec4 {
      **/
     public scaled( scalar: number ): Vec4 {
         const scaledVec4: Vec4_T = {
-            x:this.x * scalar,
-            y:this.y * scalar,
-            z:this.z * scalar,
-            w:this.w * scalar
+            X:this.x * scalar,
+            Y:this.y * scalar,
+            Z:this.z * scalar,
+            W:this.w * scalar
         };
         return new Vec4(scaledVec4);
     }
@@ -69,12 +69,12 @@ class Vec4 {
      */
     public dot( other: Vec4 ) :number {
         const productVec4: Vec4_T = {
-            x:this.x * other.x,
-            y:this.y * other.y,
-            z:this.z * other.z,
-            w:this.w * other.w
+            X:this.x * other.x,
+            Y:this.y * other.y,
+            Z:this.z * other.z,
+            W:this.w * other.w
         }
-        return productVec4.x + productVec4.y + productVec4.z + productVec4.w;
+        return productVec4.X + productVec4.Y + productVec4.Z + productVec4.W;
     }
 
     /**
@@ -82,10 +82,10 @@ class Vec4 {
      */
     public add( other: Vec4 ): Vec4 {
         const summedVec4: Vec4_T = {
-            x:this.x + other.x,
-            y:this.y + other.y,
-            z:this.z + other.z,
-            w:this.w + other.w
+            X:this.x + other.x,
+            Y:this.y + other.y,
+            Z:this.z + other.z,
+            W:this.w + other.w
         }
         return new Vec4(summedVec4);
     }
@@ -102,10 +102,10 @@ class Vec4 {
      */
     public cross( other: Vec4 ): Vec4 {
         const crossProductVec4: Vec4_T = {
-            x: this.y * other.z - this.z * other.y,
-            y: this.x * other.z - this.z * other.x,
-            z: this.x * other.y - this.y * other.x,
-            w: 0
+            X: this.y * other.z - this.z * other.y,
+            Y: this.x * other.z - this.z * other.x,
+            Z: this.x * other.y - this.y * other.x,
+            W: 0
         };
         return new Vec4(crossProductVec4);
     }
