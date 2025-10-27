@@ -1,20 +1,21 @@
 import Engine3D from "../../Engine3D";
+import ShaderProgram from "./ShaderProgram";
 
 type source_atr_data = {
     name: string,
-    location: () => number,
+    location: number,
 }
 
 type source_uni_data = {
     name: string,
-    location: () => WebGLUniformLocation,
+    location: WebGLUniformLocation,
 }
 
 export type source_type = {
     [key: string]: source_atr_data | source_uni_data;
 }
 
-class Shader {
+abstract class Shader {
     private shader:WebGLShader;
 
     protected _source_attribs:source_type = {};
@@ -38,43 +39,42 @@ class Shader {
         Engine3D.inst.GL.compileShader(this.shader);
     }
 
-    protected addSourceField (shaderProgram:WebGLProgram, atr:string):void {
-        this._source_attribs[`${atr}`] = { name:`${atr}`,
-            location:():number => {
-                const fieldAttribLoc = Engine3D.inst.GL.getAttribLocation(shaderProgram, atr);
-
-                if ( fieldAttribLoc == - 1 ) {
-                    throw new Error( 'either no field attribute named "' + atr +
-                        '" in program or attribute name is reserved/built-in.' )
-                }
-
-                let err = Engine3D.inst.GL.getError()
-                if ( err != 0 ) {
-                    throw new Error( 'invalid program. Error: ' + err );
-                }
-
-                return fieldAttribLoc;
-            }
-        }; // getting field attribute location can only be done when shader program has been linked
+    protected addSourceField (atr:string, atrLoc:number):void {
+        this._source_attribs[`${atr}`] = { name:`${atr}`, location: atrLoc}; // getting field attribute location can only be done when shader program has been linked
     }
 
-    protected addSourceUniform (shaderProgram:WebGLProgram, atr:string):void {
-        this._source_attribs[`${atr}`] = { name:`${atr}`,
-            location:():WebGLUniformLocation => {
-                const uniformAttribLoc = Engine3D.inst.GL.getUniformLocation(shaderProgram, atr);
-                if ( uniformAttribLoc == - 1 ) {
-                    throw new Error( 'either no uniform attribute named "' + atr +
-                        '" in program or attribute name is reserved/built-in.' )
-                }
+    protected addSourceUniform (atr:string, atrLoc:WebGLUniformLocation):void {
+        this._source_attribs[`${atr}`] = { name:`${atr}`, location: atrLoc };
+    }
 
-                let err = Engine3D.inst.GL.getError()
-                if ( err != 0 ) {
-                    throw new Error( 'invalid program. Error: ' + err );
-                }
+    public abstract findThenAddExistingAttributes(shaderProgram:WebGLProgram);
 
-                return uniformAttribLoc;
-            }
-        }; //getting uniform attribute location can only be done when shader program has been linked
+    /*
+     * gets field attribute location otherwise returns -1 if it does not exist, or atr name is reserved for built in
+    */
+    protected CheckFieldAttribute(shaderProgram:WebGLProgram, atr:string):number {
+        const fieldAttribLoc:number = Engine3D.inst.GL.getAttribLocation(shaderProgram, atr);
+
+        let err:number = Engine3D.inst.GL.getError()
+        if ( err != 0 ) {
+            throw new Error( 'invalid program. Error: ' + err );
+        }
+
+        return fieldAttribLoc;
+    }
+
+    /*
+     * gets uniform attribute location otherwise returns null if it does not exist, or atr name is reserved for built in
+    */
+    protected CheckUniformAttribute(shaderProgram:WebGLProgram, atr:string):WebGLUniformLocation|null {
+        const uniformAttribLoc:WebGLUniformLocation = Engine3D.inst.GL.getUniformLocation(shaderProgram, atr);
+
+        let err = Engine3D.inst.GL.getError()
+        if ( err != 0 ) {
+            throw new Error( 'invalid program. Error: ' + err );
+        }
+
+        return uniformAttribLoc;
     }
 
     public get instance():WebGLShader {
@@ -91,13 +91,16 @@ class Shader {
     // @ts-ignore
     public async getShaderFile_Load_Compile():Promise<void> {
         let fullPath:string = "";
+        let shaderName = "";
 
         switch(this.shader_type) {
-            case Engine3D.inst.GL.VERTEX_SHADER:
+            case WebGL2RenderingContext.VERTEX_SHADER:
                 fullPath += `/vertex-shaders/${this.fileName}.vert`
+                shaderName = "vertex";
                 break;
-            case Engine3D.inst.GL.FRAGMENT_SHADER:
+            case WebGL2RenderingContext.FRAGMENT_SHADER:
                 fullPath += `/fragment-shaders/${this.fileName}.frag`
+                shaderName = "fragment";
                 break;
 
         }
@@ -113,7 +116,7 @@ class Shader {
             });
 
             if(!resp.ok) {
-                throw new Error('[CAG] - Could Not Find File! Check if your file includes the correct shader extension and that the filename parameter input does not include the extension.');
+                throw new Error(`[CAG] - Could Not Find File! Check if your file includes the correct shader extension and that the filename parameter input does not include the extension.`);
             }
 
             const source = await resp.text();
@@ -122,7 +125,7 @@ class Shader {
             this.compileShader();
         }
         catch (e) {
-            throw new Error(`[CAG] - Something Went Wrong With Retrieving the Shader at ${fullPath} - error ${e}`);
+            throw new Error(`[CAG] - Something Went Wrong With Retrieving the ${shaderName} Shader at ${fullPath} - error ${e}`);
         }
 
         return;

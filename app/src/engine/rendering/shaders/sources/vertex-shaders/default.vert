@@ -7,10 +7,12 @@ uniform mat4 projection;
 
 in vec3 coordinates;
 in vec4 color;
+in vec2 uv;
 out vec4 v_color;
-
+out vec2 v_uv;
 void main( void )
 {
     gl_Position = projection * view * model * vec4( coordinates, 1.0 ); // orthographic or perspective (w = 1.0 | orthographic)
     v_color = color;
+    v_uv = uv;
 }

@@ -1,6 +1,4 @@
 import Engine3D from "../Engine3D";
-import Key from "../InputDevices/Key";
-import Keyboard from "../InputDevices/Keyboard";
 
 class Viewport {
     private canvas: HTMLCanvasElement;

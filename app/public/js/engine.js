@@ -31,37 +31,33 @@
         compileShader() {
           Engine3D_default.inst.GL.compileShader(this.shader);
         }
-        addSourceField(shaderProgram, atr) {
-          this._source_attribs[`${atr}`] = {
-            name: `${atr}`,
-            location: () => {
-              const fieldAttribLoc = Engine3D_default.inst.GL.getAttribLocation(shaderProgram, atr);
-              if (fieldAttribLoc == -1) {
-                throw new Error('either no field attribute named "' + atr + '" in program or attribute name is reserved/built-in.');
-              }
-              let err = Engine3D_default.inst.GL.getError();
-              if (err != 0) {
-                throw new Error("invalid program. Error: " + err);
-              }
-              return fieldAttribLoc;
-            }
-          };
+        addSourceField(atr, atrLoc) {
+          this._source_attribs[`${atr}`] = { name: `${atr}`, location: atrLoc };
         }
-        addSourceUniform(shaderProgram, atr) {
-          this._source_attribs[`${atr}`] = {
-            name: `${atr}`,
-            location: () => {
-              const uniformAttribLoc = Engine3D_default.inst.GL.getUniformLocation(shaderProgram, atr);
-              if (uniformAttribLoc == -1) {
-                throw new Error('either no uniform attribute named "' + atr + '" in program or attribute name is reserved/built-in.');
-              }
-              let err = Engine3D_default.inst.GL.getError();
-              if (err != 0) {
-                throw new Error("invalid program. Error: " + err);
-              }
-              return uniformAttribLoc;
-            }
-          };
+        addSourceUniform(atr, atrLoc) {
+          this._source_attribs[`${atr}`] = { name: `${atr}`, location: atrLoc };
+        }
+        /*
+         * gets field attribute location otherwise returns -1 if it does not exist, or atr name is reserved for built in
+        */
+        CheckFieldAttribute(shaderProgram, atr) {
+          const fieldAttribLoc = Engine3D_default.inst.GL.getAttribLocation(shaderProgram, atr);
+          let err = Engine3D_default.inst.GL.getError();
+          if (err != 0) {
+            throw new Error("invalid program. Error: " + err);
+          }
+          return fieldAttribLoc;
+        }
+        /*
+         * gets uniform attribute location otherwise returns null if it does not exist, or atr name is reserved for built in
+        */
+        CheckUniformAttribute(shaderProgram, atr) {
+          const uniformAttribLoc = Engine3D_default.inst.GL.getUniformLocation(shaderProgram, atr);
+          let err = Engine3D_default.inst.GL.getError();
+          if (err != 0) {
+            throw new Error("invalid program. Error: " + err);
+          }
+          return uniformAttribLoc;
         }
         get instance() {
           return this.shader;
@@ -75,12 +71,15 @@
         // @ts-ignore
         async getShaderFile_Load_Compile() {
           let fullPath = "";
+          let shaderName = "";
           switch (this.shader_type) {
-            case Engine3D_default.inst.GL.VERTEX_SHADER:
+            case WebGL2RenderingContext.VERTEX_SHADER:
               fullPath += `/vertex-shaders/${this.fileName}.vert`;
+              shaderName = "vertex";
               break;
-            case Engine3D_default.inst.GL.FRAGMENT_SHADER:
+            case WebGL2RenderingContext.FRAGMENT_SHADER:
               fullPath += `/fragment-shaders/${this.fileName}.frag`;
+              shaderName = "fragment";
               break;
           }
           try {
@@ -93,13 +92,13 @@
               }
             });
             if (!resp.ok) {
-              throw new Error("[CAG] - Could Not Find File! Check if your file includes the correct shader extension and that the filename parameter input does not include the extension.");
+              throw new Error(`[CAG] - Could Not Find File! Check if your file includes the correct shader extension and that the filename parameter input does not include the extension.`);
             }
             const source = await resp.text();
             this.loadShader(source);
             this.compileShader();
           } catch (e) {
-            throw new Error(`[CAG] - Something Went Wrong With Retrieving the Shader at ${fullPath} - error ${e}`);
+            throw new Error(`[CAG] - Something Went Wrong With Retrieving the ${shaderName} Shader at ${fullPath} - error ${e}`);
           }
           return;
         }
@@ -114,29 +113,25 @@
     "src/engine/rendering/shaders/VertexShader.ts"() {
       init_Shader();
       init_Engine3D();
-      init_ShaderProgram();
       VertexShader = class extends Shader_default {
-        constructor(shaderProgram, vertexShaderFieldAttributes) {
-          switch (vertexShaderFieldAttributes) {
-            case 1 /* COORDINATES */:
-              super(Engine3D_default.inst.GL.VERTEX_SHADER, "coordinates");
-              super.addSourceField(shaderProgram, "coordinates");
-              super.addSourceUniform(shaderProgram, "model");
-              super.addSourceUniform(shaderProgram, "view");
-              super.addSourceUniform(shaderProgram, "projection");
-              break;
-            case 3 /* COOR_COL */:
-              super(Engine3D_default.inst.GL.VERTEX_SHADER, "coord_color");
-              super.addSourceField(shaderProgram, "coordinates");
-              super.addSourceField(shaderProgram, "color");
-              super.addSourceUniform(shaderProgram, "model");
-              super.addSourceUniform(shaderProgram, "view");
-              super.addSourceUniform(shaderProgram, "projection");
-              break;
-            default:
-              throw new Error("[CAG] shaderProgram for field attributes selected is not supported");
-              break;
-          }
+        constructor(fileName) {
+          super(Engine3D_default.inst.GL.VERTEX_SHADER, fileName);
+        }
+        findThenAddExistingAttributes(shaderProgram) {
+          let atrFieldNames = ["coordinates", "color", "uv"];
+          let atrUniNames = ["model", "projection", "view"];
+          atrUniNames.forEach((atrUniName) => {
+            let atrUniLoc = super.CheckUniformAttribute(shaderProgram, atrUniName);
+            if (atrUniLoc != null) {
+              super.addSourceUniform(atrUniName, atrUniLoc);
+            }
+          });
+          atrFieldNames.forEach((atrFieldName) => {
+            let atrFieldLoc = super.CheckFieldAttribute(shaderProgram, atrFieldName);
+            if (atrFieldLoc !== -1) {
+              super.addSourceField(atrFieldName, atrFieldLoc);
+            }
+          });
         }
       };
       VertexShader_default = VertexShader;
@@ -149,20 +144,15 @@
     "src/engine/rendering/shaders/FragmentShader.ts"() {
       init_Shader();
       init_Engine3D();
-      init_ShaderProgram();
       FragmentShader = class extends Shader_default {
-        constructor(shaderProgram, vertexShaderFieldAttributes) {
-          switch (vertexShaderFieldAttributes) {
-            case 1 /* COORDINATES */:
-              super(Engine3D_default.inst.GL.FRAGMENT_SHADER, "coordinates-depth-shader");
-              break;
-            case 3 /* COOR_COL */:
-              super(Engine3D_default.inst.GL.FRAGMENT_SHADER, "coord_color");
-              break;
-            default:
-              throw new Error("shaderProgram for field attributes selected is not supported");
-              break;
-          }
+        /*
+         *  fileName: file name of the fragment shader
+        */
+        constructor(fileName) {
+          super(Engine3D_default.inst.GL.FRAGMENT_SHADER, fileName);
+        }
+        findThenAddExistingAttributes(shaderProgram) {
+          throw new Error("Method Does Not Need To Be Called Yet");
         }
       };
       FragmentShader_default = FragmentShader;
@@ -275,80 +265,11 @@
     }
   });
 
-  // src/engine/linear-algebra/Vec2.ts
-  var Vec2, Vec2_default;
-  var init_Vec2 = __esm({
-    "src/engine/linear-algebra/Vec2.ts"() {
-      Vec2 = class _Vec2 {
-        x;
-        y;
-        constructor(vec2) {
-          this.x = vec2.X;
-          this.y = vec2.Y;
-        }
-        get X() {
-          return this.x;
-        }
-        get Y() {
-          return this.y;
-        }
-        /**
-         * Returns the length of this vector
-         */
-        get magnitude() {
-          return Math.sqrt(this.x * this.x + this.y * this.y);
-        }
-        /**
-         * Returns a normalized version of this vector
-         */
-        normalized() {
-          const magnitude = this.magnitude;
-          const normalizedVec4 = { X: this.x / magnitude, Y: this.y / magnitude };
-          return new _Vec2(normalizedVec4);
-        }
-        /**
-         * Returns the vector that is this vector scaled by the given scalar(magnitude).
-         **/
-        scaled(scalar) {
-          const scaledVec4 = {
-            X: this.x * scalar,
-            Y: this.y * scalar
-          };
-          return new _Vec2(scaledVec4);
-        }
-        /**
-         * Returns the vector sum between this and other.
-         */
-        add(other) {
-          const summedVec4 = {
-            X: this.x + other.x,
-            Y: this.y + other.y
-          };
-          return new _Vec2(summedVec4);
-        }
-        /**
-         * Returns the vector sub between this and other.
-         */
-        sub(other) {
-          return this.add(other.scaled(-1));
-        }
-        /**
-         * Returns the vector values as a string.
-         */
-        toString() {
-          return `${_Vec2}(x,y): [ ${this.x}, ${this.y} ]`;
-        }
-      };
-      Vec2_default = Vec2;
-    }
-  });
-
   // src/engine/linear-algebra/Mat4.ts
   var Mat4, Mat4_default;
   var init_Mat4 = __esm({
     "src/engine/linear-algebra/Mat4.ts"() {
       init_Vec4();
-      init_Vec2();
       Mat4 = class _Mat4 {
         data;
         constructor(data) {
@@ -453,16 +374,16 @@
             W: this.data[12 + colNum]
           });
         }
-        get vectorBasisX() {
+        vectorBasisX() {
           return this.getColumn(0);
         }
-        get vectorBasisY() {
+        vectorBasisY() {
           return this.getColumn(1);
         }
-        get vectorBasisZ() {
+        vectorBasisZ() {
           return this.getColumn(2);
         }
-        get vectorBasisW() {
+        vectorBasisW() {
           return this.getColumn(3);
         }
         /**
@@ -596,45 +517,6 @@
             1
           ];
           return new _Mat4(scaledMat4X4);
-        }
-        /*
-        *  returns the perspective projection matrix using the frustum
-        */
-        static frustum(left, right, bottom, top, near, far) {
-          let scale_x = 2 * near / (right - left);
-          let scale_y = 2 * near / (top - bottom);
-          let t_x = (right + left) / (right - left);
-          let t_y = (top + bottom) / (top - bottom);
-          const c2 = (far + near) / (far - near);
-          const c1 = 2 * far * near / (far - near);
-          return new _Mat4([
-            scale_x,
-            0,
-            t_x,
-            0,
-            0,
-            scale_y,
-            t_y,
-            0,
-            0,
-            0,
-            c2,
-            -c1,
-            0,
-            0,
-            1,
-            0
-          ]);
-        }
-        /*
-        *  creates a perspective matrix using the frustum matrix.
-        */
-        static perspectiveUsingFrustum(tau, aspectRatio, near, far, offset = new Vec2_default({ X: 0, Y: 0 })) {
-          const top = Math.tan(_Mat4.tau_to_radians(tau) / 2) * near;
-          const bottom = -top;
-          const right = top * aspectRatio;
-          const left = -right;
-          return _Mat4.frustum(left - offset.X, right - offset.X, bottom - offset.Y, top - offset.Y, near, far);
         }
         /**
          returns the combination of two matrix transformation  in order,
@@ -786,17 +668,31 @@
       init_Engine3D();
       init_Mat4();
       ShaderProgram = class _ShaderProgram {
+        static shaderPrograms = {};
         static coord_count = 3;
         static color_count = 4;
+        static uv_count = 2;
         _vertexShader;
         _fragmentShader;
         _program;
-        _vertexShaderFieldAttributes;
-        constructor(vertexShaderFieldAttributes) {
-          this._vertexShaderFieldAttributes = vertexShaderFieldAttributes;
+        shaderFileName;
+        constructor(filename) {
+          this.shaderFileName = filename;
           this._program = Engine3D_default.inst.GL.createProgram();
-          this._vertexShader = new VertexShader_default(this._program, vertexShaderFieldAttributes);
-          this._fragmentShader = new FragmentShader_default(this._program, vertexShaderFieldAttributes);
+          this._vertexShader = new VertexShader_default(this.shaderFileName);
+          this._fragmentShader = new FragmentShader_default(this.shaderFileName);
+        }
+        // @ts-ignore
+        // TODO make it so that this cant be loaded multiple times
+        static async LoadShaderPrograms() {
+          await _ShaderProgram.AddToShaderPrograms("default");
+          await _ShaderProgram.AddToShaderPrograms("coordinates");
+        }
+        // @ts-ignore
+        static async AddToShaderPrograms(fileName) {
+          const newShaderProgram = new _ShaderProgram(fileName);
+          await newShaderProgram.CompileAttachAndLink();
+          _ShaderProgram.shaderPrograms[fileName] = newShaderProgram;
         }
         // @ts-ignore
         async CompileAttachAndLink() {
@@ -810,6 +706,7 @@
               let err = Engine3D_default.inst.GL.getProgramInfoLog(this._program);
               throw new Error("Link error in shader program:\n" + err);
             }
+            this._vertexShader.findThenAddExistingAttributes(this._program);
             return;
           } catch (err) {
             throw new Error(err);
@@ -818,14 +715,17 @@
         get vertexShader() {
           return this._vertexShader;
         }
-        get vertexShaderFieldAttributes() {
-          return this._vertexShaderFieldAttributes;
+        get ShaderFileName() {
+          return this.shaderFileName;
         }
         get fragmentShader() {
           return this._fragmentShader;
         }
         get program() {
           return this._program;
+        }
+        static get ShaderPrograms() {
+          return _ShaderProgram.shaderPrograms;
         }
         static UnloadAny() {
           Engine3D_default.inst.GL.useProgram(null);
@@ -837,33 +737,37 @@
           this.setProjectionUniform_Mat4x4(new Mat4_default(1 /* Identity */));
         }
         setModelUniform_Mat4x4(mat4) {
-          const loc = this.vertexShader.source_attribs["model"].location();
-          Engine3D_default.inst.GL.uniformMatrix4fv(loc, true, mat4.getData());
+          Engine3D_default.inst.GL.uniformMatrix4fv(this.vertexShader.source_attribs["model"].location, true, mat4.getData());
         }
         setViewUniform_Mat4x4(mat4) {
-          const loc = this.vertexShader.source_attribs["view"].location();
-          Engine3D_default.inst.GL.uniformMatrix4fv(loc, true, mat4.getData());
+          Engine3D_default.inst.GL.uniformMatrix4fv(this.vertexShader.source_attribs["view"].location, true, mat4.getData());
         }
         setProjectionUniform_Mat4x4(mat4) {
-          const loc = this.vertexShader.source_attribs["projection"].location();
-          Engine3D_default.inst.GL.uniformMatrix4fv(loc, true, mat4.getData());
+          Engine3D_default.inst.GL.uniformMatrix4fv(this.vertexShader.source_attribs["projection"].location, true, mat4.getData());
         }
         setVertexAttributesToBuffer() {
           let interleavedLength = 0;
-          interleavedLength = 1 /* COORDINATES */ & this._vertexShaderFieldAttributes ? interleavedLength + _ShaderProgram.coord_count : interleavedLength;
-          interleavedLength = 2 /* COLOR */ & this._vertexShaderFieldAttributes ? interleavedLength + 4 : interleavedLength;
+          interleavedLength = this._vertexShader.source_attribs["coordinates"] !== void 0 ? interleavedLength + _ShaderProgram.coord_count : interleavedLength;
+          interleavedLength = this._vertexShader.source_attribs["color"] !== void 0 ? interleavedLength + _ShaderProgram.color_count : interleavedLength;
+          interleavedLength = this._vertexShader.source_attribs["uv"] !== void 0 ? interleavedLength + _ShaderProgram.uv_count : interleavedLength;
           let currOffset = 0;
-          if (1 /* COORDINATES */ & this._vertexShaderFieldAttributes) {
-            const cordLoc = this.vertexShader.source_attribs["coordinates"].location();
+          if (this._vertexShader.source_attribs["coordinates"] !== void 0) {
+            const cordLoc = this.vertexShader.source_attribs["coordinates"].location;
             Engine3D_default.inst.GL.vertexAttribPointer(cordLoc, _ShaderProgram.coord_count, WebGL2RenderingContext.FLOAT, false, interleavedLength * Float32Array.BYTES_PER_ELEMENT, 0);
             Engine3D_default.inst.GL.enableVertexAttribArray(cordLoc);
             currOffset += _ShaderProgram.coord_count;
           }
-          if (2 /* COLOR */ & this._vertexShaderFieldAttributes) {
-            const colorLoc = this.vertexShader.source_attribs["color"].location();
+          if (this._vertexShader.source_attribs["color"] !== void 0) {
+            const colorLoc = this.vertexShader.source_attribs["color"].location;
             Engine3D_default.inst.GL.vertexAttribPointer(colorLoc, _ShaderProgram.color_count, WebGL2RenderingContext.FLOAT, false, interleavedLength * Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
             Engine3D_default.inst.GL.enableVertexAttribArray(colorLoc);
             currOffset += _ShaderProgram.color_count;
+          }
+          if (this._vertexShader.source_attribs["uv"] !== void 0) {
+            const uvLoc = this.vertexShader.source_attribs["uv"].location;
+            Engine3D_default.inst.GL.vertexAttribPointer(uvLoc, _ShaderProgram.uv_count, WebGL2RenderingContext.FLOAT, false, interleavedLength * Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
+            Engine3D_default.inst.GL.enableVertexAttribArray(uvLoc);
+            currOffset += _ShaderProgram.uv_count;
           }
         }
       };
@@ -1035,22 +939,111 @@
         rotation = new Vec3_default({ X: 0, Y: 0, Z: 0 });
         constructor() {
         }
-        getModelMatrix() {
+        modelMatrix() {
           return Mat4_default.translation(this.positon.x, this.positon.y, this.positon.z).multiply(Mat4_default.rotation_xz(this.rotation.y).multiply(Mat4_default.rotation_yz(this.rotation.x).multiply(Mat4_default.rotation_xy(this.rotation.z).multiply(Mat4_default.scale(this.scale.x, this.scale.y, this.scale.z).multiply(Mat4_default.identity())))));
         }
-        getCameraInverseModelMatrix() {
-          const scale = {
-            X: this.scale.x === 0 ? 0 : 1 / this.scale.x,
-            Y: this.scale.y === 0 ? 0 : 1 / this.scale.y,
-            Z: this.scale.z === 0 ? 0 : 1 / this.scale.z
-          };
-          const translationMat = Mat4_default.translation(-this.positon.x, -this.positon.y, -this.positon.z);
-          const rotationMat = Mat4_default.rotation_xy(-this.rotation.z).multiply(Mat4_default.rotation_yz(-this.rotation.x).multiply(Mat4_default.rotation_xz(-this.rotation.y)));
-          const scaleMat = Mat4_default.scale(scale.X, scale.Y, scale.Z);
-          return Mat4_default.identity().multiply(scaleMat.multiply(rotationMat.multiply(translationMat)));
+        localDirectionZ() {
+          return this.modelMatrix().vectorBasisZ().normalized();
+        }
+        localDirectionY() {
+          return this.modelMatrix().vectorBasisY().normalized();
+        }
+        localDirectionX() {
+          return this.modelMatrix().vectorBasisX().normalized();
         }
       };
       Transform_default = Transform;
+    }
+  });
+
+  // src/engine/Texture.ts
+  var Texture, Texture_default;
+  var init_Texture = __esm({
+    "src/engine/Texture.ts"() {
+      init_Engine3D();
+      Texture = class _Texture {
+        static bytes_per_pixel = 4;
+        //RGBA
+        static textures = {};
+        texture;
+        static XOR_TEXTURE_DATA(width) {
+          const data = new Uint8Array(width * width * _Texture.bytes_per_pixel);
+          for (let row = 0; row < width; row++) {
+            for (let col = 0; col < width; col++) {
+              let pixLoc = (row * width + col) * 4;
+              data[pixLoc] = data[pixLoc + 1] = data[pixLoc + 2] = row ^ col;
+              data[pixLoc + 3] = 255;
+            }
+          }
+          return _Texture.CreateTexture(data, width, width);
+        }
+        static CreateTexture(data, width, height) {
+          const textNew = new _Texture();
+          textNew.texture = Engine3D_default.inst.GL.createTexture();
+          Engine3D_default.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, textNew.texture);
+          Engine3D_default.inst.GL.texImage2D(
+            WebGL2RenderingContext.TEXTURE_2D,
+            0,
+            WebGL2RenderingContext.RGBA,
+            width,
+            height,
+            0,
+            WebGL2RenderingContext.RGBA,
+            WebGL2RenderingContext.UNSIGNED_BYTE,
+            data
+          );
+          Engine3D_default.inst.GL.generateMipmap(WebGL2RenderingContext.TEXTURE_2D);
+          Engine3D_default.inst.GL.texParameteri(WebGL2RenderingContext.TEXTURE_2D, WebGL2RenderingContext.TEXTURE_MIN_FILTER, WebGL2RenderingContext.LINEAR_MIPMAP_LINEAR);
+          Engine3D_default.inst.GL.texParameteri(WebGL2RenderingContext.TEXTURE_2D, WebGL2RenderingContext.TEXTURE_MAG_FILTER, WebGL2RenderingContext.LINEAR);
+          Engine3D_default.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, null);
+          return textNew;
+        }
+        static CreateImageBitMapTexture(imageBitMap) {
+          const textNew = new _Texture();
+          textNew.texture = Engine3D_default.inst.GL.createTexture();
+          Engine3D_default.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, textNew.texture);
+          Engine3D_default.inst.GL.texImage2D(
+            WebGL2RenderingContext.TEXTURE_2D,
+            0,
+            WebGL2RenderingContext.RGBA,
+            WebGL2RenderingContext.RGBA,
+            WebGL2RenderingContext.UNSIGNED_BYTE,
+            imageBitMap
+          );
+          Engine3D_default.inst.GL.generateMipmap(WebGL2RenderingContext.TEXTURE_2D);
+          Engine3D_default.inst.GL.texParameteri(WebGL2RenderingContext.TEXTURE_2D, WebGL2RenderingContext.TEXTURE_MIN_FILTER, WebGL2RenderingContext.LINEAR_MIPMAP_LINEAR);
+          Engine3D_default.inst.GL.texParameteri(WebGL2RenderingContext.TEXTURE_2D, WebGL2RenderingContext.TEXTURE_MAG_FILTER, WebGL2RenderingContext.LINEAR);
+          Engine3D_default.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, null);
+          return textNew;
+        }
+        // @ts-ignore
+        static async LoadTextures() {
+          _Texture.textures["xor"] = _Texture.XOR_TEXTURE_DATA(256);
+          _Texture.textures["texture_map"] = await _Texture.AddToTextures("texture_map.png");
+        }
+        // @ts-ignore
+        static async AddToTextures(fileName) {
+          const resp = await fetch(`/tex/${fileName}`, {
+            method: "GET",
+            headers: {
+              "Content-Type": "image/*"
+            }
+          });
+          const imageBlob = await resp.blob();
+          const imageBitMap = await createImageBitmap(imageBlob);
+          return this.CreateImageBitMapTexture(imageBitMap);
+        }
+        static get Textures() {
+          return this.textures;
+        }
+        bindTexture() {
+          Engine3D_default.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, this.texture);
+        }
+        static unBindTexture() {
+          Engine3D_default.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, null);
+        }
+      };
+      Texture_default = Texture;
     }
   });
 
@@ -1059,11 +1052,14 @@
   var init_SceneObject = __esm({
     "src/engine/SceneObject.ts"() {
       init_Transform();
+      init_Texture();
       SceneObject = class {
         mesh;
+        texture;
         transform = new Transform_default();
         constructor(mesh = null) {
           this.mesh = mesh;
+          this.texture = Texture_default.Textures["xor"];
         }
         //abstract fixedUpdate():void;
         //abstract update():void;
@@ -1072,53 +1068,14 @@
         */
         render() {
           if (this.mesh !== null) {
-            this.mesh.render(this.transform);
+            this.mesh.render(this.transform, this.texture);
           }
+        }
+        set Texture(texture) {
+          this.texture = texture;
         }
       };
       SceneObject_default = SceneObject;
-    }
-  });
-
-  // src/engine/Time.ts
-  var Time, Time_default;
-  var init_Time = __esm({
-    "src/engine/Time.ts"() {
-      Time = class _Time {
-        static _inst;
-        static TICK_RATE = 60;
-        static MILI_SEC_PER_TICK = 1e3 / this.TICK_RATE;
-        static lastFrameUpTime = 0;
-        static _deltaTime = 0;
-        // delta time in seconds
-        constructor() {
-          if (_Time._inst == null) {
-            new Error("Can only have one instance of Time");
-          }
-          _Time._inst = this;
-          document.addEventListener("updateTimeEvent", _Time.update);
-        }
-        static update() {
-          if (_Time.lastFrameUpTime !== 0) {
-            _Time._deltaTime = _Time.MiliToSec(window.performance.now() - _Time.lastFrameUpTime);
-          }
-          _Time.lastFrameUpTime = window.performance.now();
-        }
-        // Convert Milliseconds into Seconds
-        static MiliToSec(milliseconds) {
-          return milliseconds / 1e3;
-        }
-        static get deltaTime() {
-          return this._deltaTime;
-        }
-        static get timeElapsed() {
-          return window.performance.now();
-        }
-        static get fixedTime() {
-          return _Time.MILI_SEC_PER_TICK / 1e3;
-        }
-      };
-      Time_default = Time;
     }
   });
 
@@ -1246,6 +1203,7 @@
         get isKeyDown() {
           return this._isPressed;
         }
+        ar;
         /*
          * whether the key is up or not
         */
@@ -1296,39 +1254,281 @@
     }
   });
 
+  // src/engine/Time.ts
+  var Time, Time_default;
+  var init_Time = __esm({
+    "src/engine/Time.ts"() {
+      Time = class _Time {
+        static _inst;
+        static TICK_RATE = 60;
+        static MILI_SEC_PER_TICK = 1e3 / this.TICK_RATE;
+        static lastFrameUpTime = 0;
+        static _deltaTime = 0;
+        // delta time in seconds
+        constructor() {
+          if (_Time._inst == null) {
+            new Error("Can only have one instance of Time");
+          }
+          _Time._inst = this;
+          document.addEventListener("updateTimeEvent", _Time.update);
+        }
+        static update() {
+          if (_Time.lastFrameUpTime !== 0) {
+            _Time._deltaTime = _Time.MiliToSec(window.performance.now() - _Time.lastFrameUpTime);
+          }
+          _Time.lastFrameUpTime = window.performance.now();
+        }
+        // Convert Milliseconds into Seconds
+        static MiliToSec(milliseconds) {
+          return milliseconds / 1e3;
+        }
+        static get deltaTime() {
+          return this._deltaTime;
+        }
+        static get timeElapsed() {
+          return window.performance.now();
+        }
+        static get fixedTime() {
+          return _Time.MILI_SEC_PER_TICK / 1e3;
+        }
+      };
+      Time_default = Time;
+    }
+  });
+
+  // src/engine/linear-algebra/Vec2.ts
+  var Vec2, Vec2_default;
+  var init_Vec2 = __esm({
+    "src/engine/linear-algebra/Vec2.ts"() {
+      Vec2 = class _Vec2 {
+        x;
+        y;
+        constructor(vec2) {
+          this.x = vec2.X;
+          this.y = vec2.Y;
+        }
+        get X() {
+          return this.x;
+        }
+        get Y() {
+          return this.y;
+        }
+        /**
+         * Returns the length of this vector
+         */
+        get magnitude() {
+          return Math.sqrt(this.x * this.x + this.y * this.y);
+        }
+        /**
+         * Returns a normalized version of this vector
+         */
+        normalized() {
+          const magnitude = this.magnitude;
+          const normalizedVec4 = { X: this.x / magnitude, Y: this.y / magnitude };
+          return new _Vec2(normalizedVec4);
+        }
+        /**
+         * Returns the vector that is this vector scaled by the given scalar(magnitude).
+         **/
+        scaled(scalar) {
+          const scaledVec4 = {
+            X: this.x * scalar,
+            Y: this.y * scalar
+          };
+          return new _Vec2(scaledVec4);
+        }
+        /**
+         * Returns the vector sum between this and other.
+         */
+        add(other) {
+          const summedVec4 = {
+            X: this.x + other.x,
+            Y: this.y + other.y
+          };
+          return new _Vec2(summedVec4);
+        }
+        /**
+         * Returns the vector sub between this and other.
+         */
+        sub(other) {
+          return this.add(other.scaled(-1));
+        }
+        /**
+         * Returns the vector values as a string.
+         */
+        toString() {
+          return `${_Vec2}(x,y): [ ${this.x}, ${this.y} ]`;
+        }
+      };
+      Vec2_default = Vec2;
+    }
+  });
+
+  // src/engine/Camera.ts
+  var Camera, Camera_default;
+  var init_Camera = __esm({
+    "src/engine/Camera.ts"() {
+      init_SceneObject();
+      init_Mat4();
+      init_Vec3();
+      init_Mat4();
+      init_Keyboard();
+      init_Time();
+      init_Vec2();
+      Camera = class _Camera extends SceneObject_default {
+        /*
+         *  returns the perspective projection matrix defined by a frustum
+        */
+        static frustum(left, right, bottom, top, near, far) {
+          let scale_x = 2 * near / (right - left);
+          let scale_y = 2 * near / (top - bottom);
+          let t_x = (right + left) / (right - left);
+          let t_y = (top + bottom) / (top - bottom);
+          const c2 = (far + near) / (far - near);
+          const c1 = 2 * far * near / (far - near);
+          return new Mat4_default([
+            scale_x,
+            0,
+            t_x,
+            0,
+            0,
+            scale_y,
+            t_y,
+            0,
+            0,
+            0,
+            c2,
+            -c1,
+            0,
+            0,
+            1,
+            0
+          ]);
+        }
+        /*
+        *  returns the perspective projection matrix defined by a perspective using the frustum matrix.
+        */
+        static perspectiveUsingFrustum(tau, aspectRatio, near, far, offset = new Vec2_default({ X: 0, Y: 0 })) {
+          const top = Math.tan(Mat4_default.tau_to_radians(tau) / 2) * near;
+          const bottom = -top;
+          const right = top * aspectRatio;
+          const left = -right;
+          return _Camera.frustum(left - offset.X, right - offset.X, bottom - offset.Y, top - offset.Y, near, far);
+        }
+        /*
+        * returns the view using the camera model matrix data
+        */
+        getViewInverseOfModelMatrix() {
+          const scale = {
+            X: this.transform.scale.x === 0 ? 0 : 1 / this.transform.scale.x,
+            Y: this.transform.scale.y === 0 ? 0 : 1 / this.transform.scale.y,
+            Z: this.transform.scale.z === 0 ? 0 : 1 / this.transform.scale.z
+          };
+          const translationMat = Mat4_default.translation(-this.transform.positon.x, -this.transform.positon.y, -this.transform.positon.z);
+          const rotationMat = Mat4_default.rotation_xy(-this.transform.rotation.z).multiply(Mat4_default.rotation_yz(-this.transform.rotation.x).multiply(Mat4_default.rotation_xz(-this.transform.rotation.y)));
+          const scaleMat = Mat4_default.scale(scale.X, scale.Y, scale.Z);
+          return Mat4_default.identity().multiply(scaleMat.multiply(rotationMat.multiply(translationMat)));
+        }
+        static normalSpeed = 0.125;
+        static spd = 0;
+        /*
+        *  controls for noclipping mainly for the editor camera
+        */
+        noClipControls() {
+          _Camera.spd = _Camera.normalSpeed;
+          if (Keyboard_default.getKey("ShiftLeft").isPressing) {
+            _Camera.spd *= 2.5;
+          }
+          const camLocalDirectionZ = this.transform.localDirectionZ();
+          const camDirection = new Vec3_default({ X: camLocalDirectionZ.X, Y: camLocalDirectionZ.Y, Z: camLocalDirectionZ.Z });
+          const camLocalDirectionX = this.transform.localDirectionX();
+          const camPerpDirection = new Vec3_default({ X: camLocalDirectionX.X, Y: camLocalDirectionX.Y, Z: camLocalDirectionX.Z });
+          let positionChange = new Vec3_default({ X: 0, Y: 0, Z: 0 });
+          if (Keyboard_default.getKey("KeyW").isPressing) {
+            positionChange = positionChange.add(camDirection.scaled(_Camera.spd * Time_default.fixedTime));
+          }
+          if (Keyboard_default.getKey("KeyS").isPressing) {
+            positionChange = positionChange.add(camDirection.scaled(_Camera.spd * Time_default.fixedTime).scaled(-1));
+          }
+          if (Keyboard_default.getKey("KeyA").isPressing) {
+            positionChange = positionChange.add(camPerpDirection.scaled(_Camera.spd * Time_default.fixedTime).scaled(-1));
+          }
+          if (Keyboard_default.getKey("KeyD").isPressing) {
+            positionChange = positionChange.add(camPerpDirection.scaled(_Camera.spd * Time_default.fixedTime));
+          }
+          this.transform.positon = this.transform.positon.add(positionChange);
+          if (Keyboard_default.getKey("ControlLeft").isPressing) {
+            this.transform.positon.y -= _Camera.spd * Time_default.fixedTime;
+          }
+          if (Keyboard_default.getKey("Space").isPressing) {
+            this.transform.positon.y += _Camera.spd * Time_default.fixedTime;
+          }
+          if (Keyboard_default.getKey("KeyQ").isPressing) {
+            this.transform.rotation.z -= _Camera.spd * Time_default.fixedTime;
+          }
+          if (Keyboard_default.getKey("KeyE").isPressing) {
+            this.transform.rotation.z += _Camera.spd * Time_default.fixedTime;
+          }
+          if (Keyboard_default.getKey("ArrowUp").isPressing) {
+            if (this.transform.rotation.x < 0.24) {
+              this.transform.rotation.x += _Camera.spd * Time_default.fixedTime;
+            } else {
+              this.transform.rotation.x = 0.24;
+            }
+          }
+          if (Keyboard_default.getKey("ArrowDown").isPressing) {
+            if (this.transform.rotation.x > -0.24) {
+              this.transform.rotation.x -= _Camera.spd * Time_default.fixedTime;
+            } else {
+              this.transform.rotation.x = -0.24;
+            }
+          }
+          if (Keyboard_default.getKey("ArrowLeft").isPressing) {
+            this.transform.rotation.y += _Camera.spd * Time_default.fixedTime;
+          }
+          if (Keyboard_default.getKey("ArrowRight").isPressing) {
+            this.transform.rotation.y -= _Camera.spd * Time_default.fixedTime;
+          }
+        }
+      };
+      Camera_default = Camera;
+    }
+  });
+
   // src/engine/Scene.ts
   var Scene, Scene_default;
   var init_Scene = __esm({
     "src/engine/Scene.ts"() {
       init_SceneObject();
-      init_Engine3D();
       init_Time();
       init_Vec3();
       init_Keyboard();
-      Scene = class _Scene {
-        static editorCamera = new SceneObject_default();
+      init_Mesh();
+      init_Texture();
+      Scene = class {
         _objects = [];
         constructor() {
           Keyboard_default.getKey("KeyA").addKeyDownListener({ name: "print_key", doAction(key) {
             console.log(key.code);
           } });
-          const cubeObj1 = new SceneObject_default(Engine3D_default.inst.RENDERER.Meshes["cube"]);
+          const cubeObj1 = new SceneObject_default(Mesh_default.Meshes["cubeD"]);
+          cubeObj1.Texture = Texture_default.Textures["texture_map"];
           this._objects.push(cubeObj1);
           cubeObj1.transform.positon = new Vec3_default({ X: 0, Y: 0, Z: 0.4 });
           cubeObj1.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
-          const cubeObj2 = new SceneObject_default(Engine3D_default.inst.RENDERER.Meshes["cube"]);
+          const cubeObj2 = new SceneObject_default(Mesh_default.Meshes["cubeC"]);
           this._objects.push(cubeObj2);
           cubeObj2.transform.positon = new Vec3_default({ X: 0, Y: 0, Z: -0.4 });
           cubeObj2.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
-          const cubeObj3 = new SceneObject_default(Engine3D_default.inst.RENDERER.Meshes["cube"]);
+          const cubeObj3 = new SceneObject_default(Mesh_default.Meshes["cubeC"]);
           this._objects.push(cubeObj3);
           cubeObj3.transform.positon = new Vec3_default({ X: 0.4, Y: 0, Z: 0 });
           cubeObj3.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
-          const cubeObj4 = new SceneObject_default(Engine3D_default.inst.RENDERER.Meshes["cube"]);
+          const cubeObj4 = new SceneObject_default(Mesh_default.Meshes["cubeC"]);
           this._objects.push(cubeObj4);
           cubeObj4.transform.positon = new Vec3_default({ X: -0.4, Y: 0, Z: 0 });
           cubeObj4.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
-          const cubeObj5 = new SceneObject_default(Engine3D_default.inst.RENDERER.Meshes["loaded"]);
+          const cubeObj5 = new SceneObject_default(Mesh_default.Meshes["loaded"]);
           this._objects.push(cubeObj5);
           cubeObj5.transform.positon = new Vec3_default({ X: 0, Y: 5, Z: 0 });
         }
@@ -1337,72 +1537,45 @@
         fixedUpdate() {
           this.rot_amt_xz += this.rot_speed_xz * Time_default.fixedTime;
           this._objects[4].transform.rotation = new Vec3_default({ X: 0, Y: this.rot_amt_xz, Z: 0 });
-          this.CameraMovement();
-        }
-        static normalSpeed = 0.125;
-        static spd = 0;
-        CameraMovement() {
-          _Scene.spd = _Scene.normalSpeed;
-          if (Keyboard_default.getKey("ShiftLeft").isPressing) {
-            _Scene.spd *= 2.5;
-          }
-          const cameraMatrix = _Scene.editorCamera.transform.getModelMatrix();
-          const camFacingDirectionNorm = cameraMatrix.vectorBasisZ.normalized();
-          const camDirection = new Vec3_default({ X: camFacingDirectionNorm.X, Y: camFacingDirectionNorm.Y, Z: camFacingDirectionNorm.Z });
-          const camFacingPerpDirectionNorm = cameraMatrix.vectorBasisX.normalized();
-          const camPerpDirection = new Vec3_default({ X: camFacingPerpDirectionNorm.X, Y: camFacingPerpDirectionNorm.Y, Z: camFacingPerpDirectionNorm.Z });
-          let positionChange = new Vec3_default({ X: 0, Y: 0, Z: 0 });
-          if (Keyboard_default.getKey("KeyW").isPressing) {
-            positionChange = positionChange.add(camDirection.scaled(_Scene.spd * Time_default.fixedTime));
-          }
-          if (Keyboard_default.getKey("KeyS").isPressing) {
-            positionChange = positionChange.add(camDirection.scaled(_Scene.spd * Time_default.fixedTime).scaled(-1));
-          }
-          if (Keyboard_default.getKey("KeyA").isPressing) {
-            positionChange = positionChange.add(camPerpDirection.scaled(_Scene.spd * Time_default.fixedTime).scaled(-1));
-          }
-          if (Keyboard_default.getKey("KeyD").isPressing) {
-            positionChange = positionChange.add(camPerpDirection.scaled(_Scene.spd * Time_default.fixedTime));
-          }
-          _Scene.editorCamera.transform.positon = _Scene.editorCamera.transform.positon.add(positionChange);
-          if (Keyboard_default.getKey("ControlLeft").isPressing) {
-            _Scene.editorCamera.transform.positon.y -= _Scene.spd * Time_default.fixedTime;
-          }
-          if (Keyboard_default.getKey("Space").isPressing) {
-            _Scene.editorCamera.transform.positon.y += _Scene.spd * Time_default.fixedTime;
-          }
-          if (Keyboard_default.getKey("KeyQ").isPressing) {
-            _Scene.editorCamera.transform.rotation.z -= _Scene.spd * Time_default.fixedTime;
-          }
-          if (Keyboard_default.getKey("KeyE").isPressing) {
-            _Scene.editorCamera.transform.rotation.z += _Scene.spd * Time_default.fixedTime;
-          }
-          if (Keyboard_default.getKey("ArrowUp").isPressing) {
-            if (_Scene.editorCamera.transform.rotation.x < 0.24) {
-              _Scene.editorCamera.transform.rotation.x += _Scene.spd * Time_default.fixedTime;
-            } else {
-              _Scene.editorCamera.transform.rotation.x = 0.24;
-            }
-          }
-          if (Keyboard_default.getKey("ArrowDown").isPressing) {
-            if (_Scene.editorCamera.transform.rotation.x > -0.24) {
-              _Scene.editorCamera.transform.rotation.x -= _Scene.spd * Time_default.fixedTime;
-            } else {
-              _Scene.editorCamera.transform.rotation.x = -0.24;
-            }
-          }
-          if (Keyboard_default.getKey("ArrowLeft").isPressing) {
-            _Scene.editorCamera.transform.rotation.y += _Scene.spd * Time_default.fixedTime;
-          }
-          if (Keyboard_default.getKey("ArrowRight").isPressing) {
-            _Scene.editorCamera.transform.rotation.y -= _Scene.spd * Time_default.fixedTime;
-          }
         }
         get objects() {
           return this._objects;
         }
       };
       Scene_default = Scene;
+    }
+  });
+
+  // src/engine/Editor.ts
+  var Editor, Editor_default;
+  var init_Editor = __esm({
+    "src/engine/Editor.ts"() {
+      init_Camera();
+      init_Scene();
+      Editor = class _Editor {
+        static instance;
+        static camera;
+        static scene;
+        constructor() {
+          if (_Editor.instance != null) {
+            throw new TypeError("There Can Only Exist One Version Of An Editor");
+          }
+          _Editor.camera = new Camera_default();
+          _Editor.scene = new Scene_default();
+          _Editor.instance = this;
+        }
+        static get Camera() {
+          return this.camera;
+        }
+        static get Scene() {
+          return this.scene;
+        }
+        static fixedUpdate() {
+          this.scene.fixedUpdate();
+          this.camera.noClipControls();
+        }
+      };
+      Editor_default = Editor;
     }
   });
 
@@ -1414,8 +1587,12 @@
       init_Engine3D();
       init_ShaderProgram();
       init_Mat4();
-      init_Scene();
+      init_Editor();
+      init_Camera();
+      init_Vec4();
+      init_Texture();
       Mesh = class _Mesh {
+        static meshes = {};
         verts;
         indis;
         n_verts;
@@ -1438,92 +1615,1150 @@
         /**
          * Create a box mesh with the given dimensions and colors.
          */
-        static box(shaderProgram, width, height, depth) {
+        static box(shaderProgram, width, height, depth, isMultiFace = false, isFoldingTexture = false, windingOrder = WebGL2RenderingContext.CCW, rgba = new Vec4_default({ X: 1, Y: 1, Z: 1, W: 1 })) {
           let hwidth = width / 2;
           let hheight = height / 2;
           let hdepth = depth / 2;
-          let verts = [
-            hwidth,
-            -hheight,
-            -hdepth,
-            //1.0, 0.0, 0.0, 1.0,
-            -hwidth,
-            -hheight,
-            -hdepth,
-            //0.0, 1.0, 0.0, 1.0,
-            -hwidth,
-            hheight,
-            -hdepth,
-            //0.0, 0.0, 1.0, 1.0,
-            hwidth,
-            hheight,
-            -hdepth,
-            //1.0, 1.0, 0.0, 1.0,
-            hwidth,
-            -hheight,
-            hdepth,
-            //1.0, 0.0, 1.0, 1.0,
-            -hwidth,
-            -hheight,
-            hdepth,
-            //0.0, 1.0, 1.0, 1.0,
-            -hwidth,
-            hheight,
-            hdepth,
-            //0.5, 0.5, 1.0, 1.0,
-            hwidth,
-            hheight,
-            hdepth
-            //1.0, 1.0, 0.5, 1.0,
-          ];
-          let indis = [
-            // clockwise winding
-            /*
-            0, 1, 2, 2, 3, 0,
-            4, 0, 3, 3, 7, 4,
-            5, 4, 7, 7, 6, 5,
-            1, 5, 6, 6, 2, 1,
-            3, 2, 6, 6, 7, 3,
-            4, 5, 1, 1, 0, 4,
-            */
-            // counter-clockwise winding
-            0,
-            3,
-            2,
-            2,
-            1,
-            0,
-            4,
-            7,
-            3,
-            3,
-            0,
-            4,
-            5,
-            6,
-            7,
-            7,
-            4,
-            5,
-            1,
-            2,
-            6,
-            6,
-            5,
-            1,
-            3,
-            7,
-            6,
-            6,
-            2,
-            3,
-            4,
-            0,
-            1,
-            1,
-            5,
-            4
-          ];
+          let verts = [];
+          if (isMultiFace) {
+            const isColor = shaderProgram.vertexShader.source_attribs["color"] !== void 0;
+            const isUV = shaderProgram.vertexShader.source_attribs["uv"] !== void 0;
+            if (isColor && isUV) {
+              verts = [
+                // FRONT VERTS
+                hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.75,
+                0.5,
+                // Bottom-Right
+                -hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.5,
+                0.5,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.5,
+                0.25,
+                // Top-Left
+                hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.75,
+                0.25,
+                // Top-Right
+                // BACK VERTS
+                hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.25,
+                0.5,
+                // Bottom-Right
+                -hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0,
+                0.5,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0,
+                0.25,
+                // Top-Left
+                hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.25,
+                0.25,
+                // Top-Right
+                // TOP VERTS
+                hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.5,
+                0,
+                // Bottom-Right
+                -hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.75,
+                0,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.75,
+                0.25,
+                // Top-Left
+                hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.5,
+                0.25,
+                // Top-Right
+                // BOTTOM VERTS
+                hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.75,
+                0.75,
+                // Bottom-Right
+                -hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.5,
+                0.75,
+                // Bottom-Left
+                -hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.5,
+                0.5,
+                // Top-Left
+                hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.75,
+                0.5,
+                // Top-Right
+                // LEFT VERTS
+                -hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.5,
+                0.5,
+                // Bottom-Right
+                -hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.25,
+                0.5,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.25,
+                0.25,
+                // Top-Left
+                -hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.5,
+                0.25,
+                // Top-Right
+                // RIGHT VERTS
+                hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                1,
+                0.5,
+                // Bottom-Right
+                hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.75,
+                0.5,
+                // Bottom-Left
+                hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                0.75,
+                0.25,
+                // Top-Left
+                hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                1,
+                0.25
+                // Top-Right
+              ];
+            } else if (isColor) {
+              verts = [
+                // FRONT VERTS
+                hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Right
+                -hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Top-Left
+                hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Top-Right
+                // BACK VERTS
+                hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Right
+                -hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Top-Left
+                hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Top-Right
+                // TOP VERTS
+                hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Right
+                -hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Top-Left
+                hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Top-Right
+                // BOTTOM VERTS
+                hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Right
+                -hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Left
+                -hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Top-Left
+                hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Top-Right
+                // LEFT VERTS
+                -hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Right
+                -hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Top-Left
+                -hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Top-Right
+                // RIGHT VERTS
+                hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Right
+                hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Bottom-Left
+                hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                // Top-Left
+                hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W
+                // Top-Right
+              ];
+            } else if (isUV) {
+              if (isFoldingTexture) {
+                verts = [
+                  // FRONT VERTS
+                  hwidth,
+                  -hheight,
+                  -hdepth,
+                  0.75,
+                  0.5,
+                  // Bottom-Right
+                  -hwidth,
+                  -hheight,
+                  -hdepth,
+                  0.5,
+                  0.5,
+                  // Bottom-Left
+                  -hwidth,
+                  hheight,
+                  -hdepth,
+                  0.5,
+                  0.25,
+                  // Top-Left
+                  hwidth,
+                  hheight,
+                  -hdepth,
+                  0.75,
+                  0.25,
+                  // Top-Right
+                  // BACK VERTS
+                  hwidth,
+                  -hheight,
+                  hdepth,
+                  0.25,
+                  0.5,
+                  // Bottom-Right
+                  -hwidth,
+                  -hheight,
+                  hdepth,
+                  0,
+                  0.5,
+                  // Bottom-Left
+                  -hwidth,
+                  hheight,
+                  hdepth,
+                  0,
+                  0.25,
+                  // Top-Left
+                  hwidth,
+                  hheight,
+                  hdepth,
+                  0.25,
+                  0.25,
+                  // Top-Right
+                  // TOP VERTS
+                  hwidth,
+                  hheight,
+                  -hdepth,
+                  0.5,
+                  0,
+                  // Bottom-Right
+                  -hwidth,
+                  hheight,
+                  -hdepth,
+                  0.75,
+                  0,
+                  // Bottom-Left
+                  -hwidth,
+                  hheight,
+                  hdepth,
+                  0.75,
+                  0.25,
+                  // Top-Left
+                  hwidth,
+                  hheight,
+                  hdepth,
+                  0.5,
+                  0.25,
+                  // Top-Right
+                  // BOTTOM VERTS
+                  hwidth,
+                  -hheight,
+                  -hdepth,
+                  0.75,
+                  0.75,
+                  // Bottom-Right
+                  -hwidth,
+                  -hheight,
+                  -hdepth,
+                  0.5,
+                  0.75,
+                  // Bottom-Left
+                  -hwidth,
+                  -hheight,
+                  hdepth,
+                  0.5,
+                  0.5,
+                  // Top-Left
+                  hwidth,
+                  -hheight,
+                  hdepth,
+                  0.75,
+                  0.5,
+                  // Top-Right
+                  // LEFT VERTS
+                  -hwidth,
+                  -hheight,
+                  -hdepth,
+                  0.5,
+                  0.5,
+                  // Bottom-Right
+                  -hwidth,
+                  -hheight,
+                  hdepth,
+                  0.25,
+                  0.5,
+                  // Bottom-Left
+                  -hwidth,
+                  hheight,
+                  hdepth,
+                  0.25,
+                  0.25,
+                  // Top-Left
+                  -hwidth,
+                  hheight,
+                  -hdepth,
+                  0.5,
+                  0.25,
+                  // Top-Right
+                  // RIGHT VERTS
+                  hwidth,
+                  -hheight,
+                  -hdepth,
+                  1,
+                  0.5,
+                  // Bottom-Right
+                  hwidth,
+                  -hheight,
+                  hdepth,
+                  0.75,
+                  0.5,
+                  // Bottom-Left
+                  hwidth,
+                  hheight,
+                  hdepth,
+                  0.75,
+                  0.25,
+                  // Top-Left
+                  hwidth,
+                  hheight,
+                  -hdepth,
+                  1,
+                  0.25
+                  // Top-Right
+                ];
+              } else {
+                verts = [
+                  // FRONT VERTS
+                  hwidth,
+                  -hheight,
+                  -hdepth,
+                  1,
+                  1,
+                  // Bottom-Right
+                  -hwidth,
+                  -hheight,
+                  -hdepth,
+                  0,
+                  1,
+                  // Bottom-Left
+                  -hwidth,
+                  hheight,
+                  -hdepth,
+                  0,
+                  0,
+                  // Top-Left
+                  hwidth,
+                  hheight,
+                  -hdepth,
+                  1,
+                  0,
+                  // Top-Right
+                  // BACK VERTS
+                  hwidth,
+                  -hheight,
+                  hdepth,
+                  1,
+                  1,
+                  // Bottom-Right
+                  -hwidth,
+                  -hheight,
+                  hdepth,
+                  0,
+                  1,
+                  // Bottom-Left
+                  -hwidth,
+                  hheight,
+                  hdepth,
+                  0,
+                  0,
+                  // Top-Left
+                  hwidth,
+                  hheight,
+                  hdepth,
+                  1,
+                  0,
+                  // Top-Right
+                  // TOP VERTS
+                  hwidth,
+                  hheight,
+                  -hdepth,
+                  1,
+                  1,
+                  // Bottom-Right
+                  -hwidth,
+                  hheight,
+                  -hdepth,
+                  0,
+                  1,
+                  // Bottom-Left
+                  -hwidth,
+                  hheight,
+                  hdepth,
+                  0,
+                  0,
+                  // Top-Left
+                  hwidth,
+                  hheight,
+                  hdepth,
+                  1,
+                  0,
+                  // Top-Right
+                  // BOTTOM VERTS
+                  hwidth,
+                  -hheight,
+                  -hdepth,
+                  1,
+                  1,
+                  // Bottom-Right
+                  -hwidth,
+                  -hheight,
+                  -hdepth,
+                  0,
+                  1,
+                  // Bottom-Left
+                  -hwidth,
+                  -hheight,
+                  hdepth,
+                  0,
+                  0,
+                  // Top-Left
+                  hwidth,
+                  -hheight,
+                  hdepth,
+                  1,
+                  0,
+                  // Top-Right
+                  // LEFT VERTS
+                  -hwidth,
+                  -hheight,
+                  -hdepth,
+                  1,
+                  1,
+                  // Bottom-Right
+                  -hwidth,
+                  -hheight,
+                  hdepth,
+                  0,
+                  1,
+                  // Bottom-Left
+                  -hwidth,
+                  hheight,
+                  hdepth,
+                  0,
+                  0,
+                  // Top-Left
+                  -hwidth,
+                  hheight,
+                  -hdepth,
+                  1,
+                  0,
+                  // Top-Right
+                  // RIGHT VERTS
+                  hwidth,
+                  -hheight,
+                  -hdepth,
+                  1,
+                  1,
+                  // Bottom-Right
+                  hwidth,
+                  -hheight,
+                  hdepth,
+                  0,
+                  1,
+                  // Bottom-Left
+                  hwidth,
+                  hheight,
+                  hdepth,
+                  0,
+                  0,
+                  // Top-Left
+                  hwidth,
+                  hheight,
+                  -hdepth,
+                  1,
+                  0
+                  // Top-Right
+                ];
+              }
+            } else {
+              verts = [
+                // FRONT VERTS
+                hwidth,
+                -hheight,
+                -hdepth,
+                // Bottom-Right (0)
+                -hwidth,
+                -hheight,
+                -hdepth,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                -hdepth,
+                // Top-Left
+                hwidth,
+                hheight,
+                -hdepth,
+                // Top-Right
+                // BACK VERTS
+                hwidth,
+                -hheight,
+                hdepth,
+                // Bottom-Left (4) (ALL OF THESE ARE LOOKING AT THE FRONT NOT LOOKING AT THEM FROM THEIR VIEW MEANING THIS IS THE BOTTOM RIGHT LOOKING FORWARD)
+                -hwidth,
+                -hheight,
+                hdepth,
+                // Bottom-Right
+                -hwidth,
+                hheight,
+                hdepth,
+                // Top-Right
+                hwidth,
+                hheight,
+                hdepth,
+                // Top-Left
+                // TOP VERTS
+                hwidth,
+                hheight,
+                -hdepth,
+                // Bottom-Right (8)
+                -hwidth,
+                hheight,
+                -hdepth,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                hdepth,
+                // Top-Left
+                hwidth,
+                hheight,
+                hdepth,
+                // Top-Right
+                // BOTTOM VERTS
+                hwidth,
+                -hheight,
+                -hdepth,
+                // Bottom-Right (12)
+                -hwidth,
+                -hheight,
+                -hdepth,
+                // Bottom-Left
+                -hwidth,
+                -hheight,
+                hdepth,
+                // Top-Left
+                hwidth,
+                -hheight,
+                hdepth,
+                // Top-Right
+                // LEFT VERTS
+                -hwidth,
+                -hheight,
+                -hdepth,
+                // Bottom-Right (16)
+                -hwidth,
+                -hheight,
+                hdepth,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                hdepth,
+                // Top-Left
+                -hwidth,
+                hheight,
+                -hdepth,
+                // Top-Right
+                // RIGHT VERTS
+                hwidth,
+                -hheight,
+                -hdepth,
+                // Bottom-Right (20)
+                hwidth,
+                -hheight,
+                hdepth,
+                // Bottom-Left
+                hwidth,
+                hheight,
+                hdepth,
+                // Top-Left
+                hwidth,
+                hheight,
+                -hdepth
+                // Top-Right
+              ];
+            }
+          } else {
+            const isColor = shaderProgram.vertexShader.source_attribs["color"] !== void 0;
+            if (isColor) {
+              verts = [
+                hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                -hwidth,
+                -hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                -hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                hwidth,
+                hheight,
+                -hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                -hwidth,
+                -hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                -hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W,
+                hwidth,
+                hheight,
+                hdepth,
+                rgba.X,
+                rgba.Y,
+                rgba.Z,
+                rgba.W
+              ];
+            } else {
+              verts = [
+                // BACK VERTS
+                hwidth,
+                -hheight,
+                -hdepth,
+                // Bottom-Right
+                -hwidth,
+                -hheight,
+                -hdepth,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                -hdepth,
+                // Top-Left
+                hwidth,
+                hheight,
+                -hdepth,
+                // Top-Right
+                // FRONT VERTS
+                hwidth,
+                -hheight,
+                hdepth,
+                // Bottom-Right
+                -hwidth,
+                -hheight,
+                hdepth,
+                // Bottom-Left
+                -hwidth,
+                hheight,
+                hdepth,
+                // Top-Left
+                hwidth,
+                hheight,
+                hdepth
+                // Top-Right
+              ];
+            }
+          }
+          let indis = [];
+          if (isMultiFace) {
+            if (windingOrder === WebGL2RenderingContext.CW) {
+              indis = [
+                // clockwise winding
+                0,
+                1,
+                2,
+                2,
+                3,
+                0,
+                // FRONT-FACE
+                20,
+                21,
+                23,
+                23,
+                21,
+                22,
+                // RIGHT-FACE
+                5,
+                4,
+                7,
+                7,
+                6,
+                5,
+                // BACK-FACE
+                16,
+                17,
+                19,
+                19,
+                17,
+                18,
+                // LEFT-FACE
+                8,
+                9,
+                11,
+                11,
+                9,
+                10,
+                // TOP-FACE
+                12,
+                13,
+                15,
+                15,
+                13,
+                14
+                // BOTTOM-FACE
+              ];
+            } else {
+              indis = [
+                // counter-clockwise winding
+                0,
+                3,
+                2,
+                2,
+                1,
+                0,
+                20,
+                21,
+                22,
+                22,
+                23,
+                20,
+                5,
+                6,
+                7,
+                7,
+                4,
+                5,
+                16,
+                19,
+                18,
+                18,
+                17,
+                16,
+                8,
+                11,
+                10,
+                10,
+                9,
+                8,
+                12,
+                13,
+                14,
+                14,
+                15,
+                12
+              ];
+            }
+          } else {
+            if (windingOrder === WebGL2RenderingContext.CW) {
+              indis = [
+                // clockwise winding
+                0,
+                1,
+                2,
+                2,
+                3,
+                0,
+                4,
+                0,
+                3,
+                3,
+                7,
+                4,
+                5,
+                4,
+                7,
+                7,
+                6,
+                5,
+                1,
+                5,
+                6,
+                6,
+                2,
+                1,
+                3,
+                2,
+                6,
+                6,
+                7,
+                3,
+                4,
+                5,
+                1,
+                1,
+                0,
+                4
+              ];
+            } else {
+              indis = [
+                // counter-clockwise winding
+                0,
+                3,
+                2,
+                2,
+                1,
+                0,
+                4,
+                7,
+                3,
+                3,
+                0,
+                4,
+                5,
+                6,
+                7,
+                7,
+                4,
+                5,
+                1,
+                2,
+                6,
+                6,
+                5,
+                1,
+                3,
+                7,
+                6,
+                6,
+                2,
+                3,
+                4,
+                0,
+                1,
+                1,
+                5,
+                4
+              ];
+            }
+          }
           const mesh = new _Mesh(shaderProgram, verts, indis);
           mesh.windingOrder = WebGL2RenderingContext.CCW;
           return mesh;
@@ -1602,10 +2837,11 @@
         /*
         *  renders the mesh every frame.
         */
-        render(transform) {
+        render(transform, texture) {
           this.shaderProgram.Load();
           const prevVertBuffer = Buffer_default.bindArrayBuffer(this.verts);
           const prevElemBuffer = Buffer_default.bindElementArrayBuffer(this.indis);
+          texture.bindTexture();
           this.shaderProgram.setVertexAttributesToBuffer();
           if (this.isFaceCulling) {
             Engine3D_default.inst.GL.frontFace(this.windingOrder);
@@ -1614,16 +2850,17 @@
           } else {
             Engine3D_default.inst.GL.disable(WebGL2RenderingContext.CULL_FACE);
           }
-          this.shaderProgram.setProjectionUniform_Mat4x4(Mat4_default.perspectiveUsingFrustum(0.25, Engine3D_default.inst.VIEWPORT.aspectRatio, 0.125, 10));
-          if (Scene_default.editorCamera !== void 0) {
-            this.shaderProgram.setViewUniform_Mat4x4(Scene_default.editorCamera.transform.getCameraInverseModelMatrix());
+          this.shaderProgram.setProjectionUniform_Mat4x4(Camera_default.perspectiveUsingFrustum(0.225, Engine3D_default.inst.VIEWPORT.aspectRatio, 0.025, 10));
+          if (Editor_default.Camera !== void 0) {
+            this.shaderProgram.setViewUniform_Mat4x4(Editor_default.Camera.getViewInverseOfModelMatrix());
           } else {
             this.shaderProgram.setViewUniform_Mat4x4(Mat4_default.identity());
           }
-          this.shaderProgram.setModelUniform_Mat4x4(transform.getModelMatrix());
+          this.shaderProgram.setModelUniform_Mat4x4(transform.modelMatrix());
           Engine3D_default.inst.GL.drawElements(WebGL2RenderingContext.TRIANGLES, this.n_indis, WebGL2RenderingContext.UNSIGNED_SHORT, 0);
           Buffer_default.bindArrayBuffer(prevVertBuffer);
           Buffer_default.bindElementArrayBuffer(prevElemBuffer);
+          Texture_default.unBindTexture();
           ShaderProgram_default.UnloadAny();
         }
         /*
@@ -1663,6 +2900,18 @@
                 this.windingOrder = WebGL2RenderingContext.CCW;
             }
             */
+        // @ts-ignore
+        static async LoadMeshes() {
+          this.AddToMeshes("loaded", await _Mesh.get_obj_from_file("teapot.obj", ShaderProgram_default.ShaderPrograms["coordinates"]));
+          this.meshes["cubeC"] = _Mesh.box(ShaderProgram_default.ShaderPrograms["coordinates"], 1, 1, 1);
+          this.meshes["cubeD"] = _Mesh.box(ShaderProgram_default.ShaderPrograms["default"], 1, 1, 1, true, true);
+        }
+        static AddToMeshes(name, mesh) {
+          this.meshes[name] = mesh;
+        }
+        static get Meshes() {
+          return this.meshes;
+        }
       };
       Mesh_default = Mesh;
     }
@@ -1675,32 +2924,35 @@
       init_Engine3D();
       init_ShaderProgram();
       init_Mesh();
+      init_Editor();
+      init_Texture();
       Renderer = class _Renderer {
+        static instance;
         static updateTimeEvent = new Event("updateTimeEvent");
-        meshes = {};
-        shaderProgram;
-        constructor() {
-          this.shaderProgram = new ShaderProgram_default(1 /* COORDINATES */);
-          this.shaderProgram.CompileAttachAndLink().then(
-            () => {
-              this.initializeClearPresets();
-              this.initializePresets();
-              this.clear();
-              this.render();
-            }
-          );
-        }
         // @ts-ignore
-        async LoadMeshes() {
-          this.AddToMeshes(await Mesh_default.get_obj_from_file("teapot.obj", this.shaderProgram));
-          this.meshes["cube"] = Mesh_default.box(this.shaderProgram, 1, 1, 1);
+        static async Instantiate() {
+          if (_Renderer.instance != null) {
+            throw new Error("Can Only Create One Renderer");
+          }
+          _Renderer.instance = new _Renderer();
+          _Renderer.instance.initializeClearPresets();
+          _Renderer.instance.initializePresets();
+          _Renderer.instance.clear();
+          await ShaderProgram_default.LoadShaderPrograms();
+          await Mesh_default.LoadMeshes();
+          await Texture_default.LoadTextures();
+          return _Renderer.instance;
         }
-        //
-        // Initializes clearing values for gl renderer
+        /*
+         * initializes clearing state
+        */
         initializeClearPresets() {
           Engine3D_default.inst.GL.clearColor(0, 0.85, 1, 1);
           Engine3D_default.inst.GL.clearDepth(1);
         }
+        /*
+         * clears the screen
+        */
         clear() {
           Engine3D_default.inst.GL.clear(WebGL2RenderingContext.COLOR_BUFFER_BIT | WebGL2RenderingContext.DEPTH_BUFFER_BIT);
         }
@@ -1709,18 +2961,15 @@
         initializePresets() {
           Engine3D_default.inst.GL.enable(WebGL2RenderingContext.DEPTH_TEST);
         }
-        get Meshes() {
-          return this.meshes;
-        }
-        AddToMeshes(mesh) {
-          this.meshes["loaded"] = mesh;
-        }
+        /*
+        *  renders all the vertices in the scene
+        */
         render() {
           document.dispatchEvent(_Renderer.updateTimeEvent);
           const aniFrameID = window.requestAnimationFrame(this.render.bind(this));
           this.clear();
           try {
-            for (const sceneObject of Engine3D_default.inst.SCENE.objects) {
+            for (const sceneObject of Editor_default.Scene.objects) {
               sceneObject.render();
             }
           } catch (e) {
@@ -1797,31 +3046,33 @@
       init_Renderer();
       init_Viewport();
       init_Keyboard();
-      init_Scene();
       init_Time();
+      init_Editor();
       Engine3D = class _Engine3D {
         static instance;
         gl;
         renderer;
         viewport;
-        scene;
+        editor;
         constructor(canvas) {
           if (_Engine3D.instance !== null && _Engine3D.instance !== void 0) {
             throw new Error("Cannot Have Two instances of Engine3D");
+          } else {
+            _Engine3D.instance = this;
           }
-          _Engine3D.instance = this;
           new Time_default();
           new Keyboard_default();
           this.gl = canvas.getContext("webgl2");
           this.viewport = new Viewport_default(canvas, 800, 450);
-          this.renderer = new Renderer_default();
-          this.renderer.LoadMeshes().then(() => {
-            this.scene = new Scene_default();
+          Renderer_default.Instantiate().then((renderer) => {
+            this.renderer = renderer;
+            this.editor = new Editor_default();
+            setInterval(this.fixedUpdate.bind(this), Time_default.MILI_SEC_PER_TICK);
+            this.renderer.render();
           });
-          setInterval(this.fixedUpdate.bind(this), Time_default.MILI_SEC_PER_TICK);
         }
         fixedUpdate() {
-          this.scene.fixedUpdate();
+          Editor_default.fixedUpdate();
         }
         //
         // Gets the instance of the current running engine
@@ -1840,9 +3091,6 @@
         }
         get VIEWPORT() {
           return this.viewport;
-        }
-        get SCENE() {
-          return this.scene;
         }
         get RENDERER() {
           return this.renderer;

@@ -129,7 +129,7 @@ class Key {
     */
     public get isKeyDown (): boolean {
         return this._isPressed;
-    }
+    }ar
 
     /*
      * whether the key is up or not

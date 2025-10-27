@@ -6,29 +6,47 @@ import Shader from "./Shader";
 import shader from "./Shader";
 import Mat4 from "../../linear-algebra/Mat4";
 import Viewport from "../Viewport";
+import Mesh from "../Mesh";
 
-export enum VertexShaderFieldAttributes {
-    NONE = 0,
-    COORDINATES = 1,
-    COLOR = 2,
-    COOR_COL = COORDINATES|COLOR,
-}
+type SHADERPROGRAMS = {
+    [name:string]: ShaderProgram;
+};
 
+/*
+ * MUST USE FRAG AND VERT SHADER WITH SAME FILE NAME
+*/
 class ShaderProgram {
-    private static coord_count:number = 3;
-    private static color_count:number = 4;
+    private static shaderPrograms: SHADERPROGRAMS = {};
+
+    private static readonly coord_count:number = 3;
+    private static readonly color_count:number = 4;
+    private static readonly uv_count:number = 2;
 
     private _vertexShader:Shader;
     private _fragmentShader:Shader;
 
     private _program:WebGLProgram;
-    private _vertexShaderFieldAttributes:VertexShaderFieldAttributes;
+    private shaderFileName:string;
 
-    constructor(vertexShaderFieldAttributes:VertexShaderFieldAttributes) {
-        this._vertexShaderFieldAttributes = vertexShaderFieldAttributes;
+    constructor(filename:string) {
+        this.shaderFileName = filename;
         this._program = Engine3D.inst.GL.createProgram();
-        this._vertexShader = new VertexShader(this._program, vertexShaderFieldAttributes);
-        this._fragmentShader = new FragmentShader(this._program, vertexShaderFieldAttributes);
+        this._vertexShader = new VertexShader(this.shaderFileName);
+        this._fragmentShader = new FragmentShader(this.shaderFileName);
+    }
+
+    // @ts-ignore
+    // TODO make it so that this cant be loaded multiple times
+    public static async LoadShaderPrograms(): Promise<void> {
+        await ShaderProgram.AddToShaderPrograms('default');
+        await ShaderProgram.AddToShaderPrograms('coordinates');
+    }
+
+    // @ts-ignore
+    public static async AddToShaderPrograms(fileName:string): Promise<void> {
+        const newShaderProgram = new ShaderProgram(fileName);
+        await newShaderProgram.CompileAttachAndLink();
+        ShaderProgram.shaderPrograms[fileName] = newShaderProgram;
     }
 
     // @ts-ignore
@@ -46,6 +64,8 @@ class ShaderProgram {
                 throw new Error( 'Link error in shader program:\n' + err );
             }
 
+            this._vertexShader.findThenAddExistingAttributes(this._program);
+
             return;
         } catch (err) {
             throw new Error( err );
@@ -56,8 +76,8 @@ class ShaderProgram {
         return this._vertexShader;
     }
 
-    get vertexShaderFieldAttributes():VertexShaderFieldAttributes {
-        return this._vertexShaderFieldAttributes;
+    get ShaderFileName():string {
+        return this.shaderFileName;
     }
 
     get fragmentShader(): Shader {
@@ -66,6 +86,10 @@ class ShaderProgram {
 
     get program(): WebGLProgram {
         return this._program;
+    }
+
+    public static get ShaderPrograms(): SHADERPROGRAMS {
+        return ShaderProgram.shaderPrograms;
     }
 
     public static UnloadAny():void {
@@ -80,41 +104,45 @@ class ShaderProgram {
     }
 
     public setModelUniform_Mat4x4(mat4: mat4):void {
-        const loc:WebGLUniformLocation = this.vertexShader.source_attribs['model'].location();
-        Engine3D.inst.GL.uniformMatrix4fv( loc, true, mat4.getData());
+        Engine3D.inst.GL.uniformMatrix4fv( this.vertexShader.source_attribs['model'].location, true, mat4.getData());
     }
 
     public setViewUniform_Mat4x4(mat4: mat4):void {
-        const loc:WebGLUniformLocation = this.vertexShader.source_attribs['view'].location();
-        Engine3D.inst.GL.uniformMatrix4fv( loc, true, mat4.getData());
+        Engine3D.inst.GL.uniformMatrix4fv( this.vertexShader.source_attribs['view'].location, true, mat4.getData());
     }
 
     public setProjectionUniform_Mat4x4(mat4: mat4):void {
-        const loc:WebGLUniformLocation = this.vertexShader.source_attribs['projection'].location();
-        Engine3D.inst.GL.uniformMatrix4fv( loc, true, mat4.getData());
+        Engine3D.inst.GL.uniformMatrix4fv( this.vertexShader.source_attribs['projection'].location, true, mat4.getData());
     }
 
     public setVertexAttributesToBuffer():void {
         let interleavedLength:number = 0;
-        interleavedLength = (VertexShaderFieldAttributes.COORDINATES & this._vertexShaderFieldAttributes) ? interleavedLength + ShaderProgram.coord_count : interleavedLength;
-        interleavedLength = (VertexShaderFieldAttributes.COLOR & this._vertexShaderFieldAttributes) ? interleavedLength + 4 : interleavedLength;
+        interleavedLength = (this._vertexShader.source_attribs['coordinates'] !== undefined) ? interleavedLength + ShaderProgram.coord_count : interleavedLength;
+        interleavedLength = (this._vertexShader.source_attribs['color'] !== undefined) ? interleavedLength + ShaderProgram.color_count : interleavedLength;
+        interleavedLength = (this._vertexShader.source_attribs['uv'] !== undefined) ? interleavedLength + ShaderProgram.uv_count : interleavedLength;
 
         let currOffset:number = 0;
 
-        if(VertexShaderFieldAttributes.COORDINATES & this._vertexShaderFieldAttributes) {
-            const cordLoc:number = this.vertexShader.source_attribs['coordinates'].location() as number;
+        if(this._vertexShader.source_attribs['coordinates'] !== undefined) {
+            const cordLoc:number = this.vertexShader.source_attribs['coordinates'].location as number;
             Engine3D.inst.GL.vertexAttribPointer(cordLoc, ShaderProgram.coord_count, WebGL2RenderingContext.FLOAT, false, interleavedLength*Float32Array.BYTES_PER_ELEMENT, 0);
             Engine3D.inst.GL.enableVertexAttribArray(cordLoc);
             currOffset += ShaderProgram.coord_count;
         }
 
-        if(VertexShaderFieldAttributes.COLOR & this._vertexShaderFieldAttributes) {
-            const colorLoc:number = this.vertexShader.source_attribs['color'].location() as number;
+        if(this._vertexShader.source_attribs['color'] !== undefined) {
+            const colorLoc:number = this.vertexShader.source_attribs['color'].location as number;
             Engine3D.inst.GL.vertexAttribPointer(colorLoc, ShaderProgram.color_count, WebGL2RenderingContext.FLOAT, false, interleavedLength*Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
             Engine3D.inst.GL.enableVertexAttribArray(colorLoc);
             currOffset += ShaderProgram.color_count;
         }
+
+        if(this._vertexShader.source_attribs['uv'] !== undefined) {
+            const uvLoc:number = this.vertexShader.source_attribs['uv'].location as number;
+            Engine3D.inst.GL.vertexAttribPointer(uvLoc, ShaderProgram.uv_count, WebGL2RenderingContext.FLOAT, false, interleavedLength*Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
+            Engine3D.inst.GL.enableVertexAttribArray(uvLoc);
+            currOffset += ShaderProgram.uv_count;
+        }
     }
 }
-
 export default ShaderProgram;
