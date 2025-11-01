@@ -52,16 +52,16 @@ class Mesh {
             if(isColor && isUV) {
                 verts = [
                     // FRONT VERTS
-                     hwidth, -hheight, -hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.75, 0.5,  // Bottom-Right
-                    -hwidth, -hheight, -hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.5, 0.5,   // Bottom-Left
-                    -hwidth,  hheight, -hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.5, 0.25,  // Top-Left
-                     hwidth,  hheight, -hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.75, 0.25, // Top-Right
+                     hwidth, -hheight, -hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.25, 0.5,  // Bottom-Right
+                    -hwidth, -hheight, -hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0, 0.5,   // Bottom-Left
+                    -hwidth,  hheight, -hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0, 0.25,  // Top-Left
+                     hwidth,  hheight, -hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.25, 0.25, // Top-Right
 
                     // BACK VERTS
-                     hwidth, -hheight,  hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.25, 0.5,  // Bottom-Right
-                    -hwidth, -hheight,  hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0, 0.5,     // Bottom-Left
-                    -hwidth,  hheight,  hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0, 0.25,    // Top-Left
-                     hwidth,  hheight,  hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.25, 0.25, // Top-Right
+                     hwidth, -hheight,  hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.75, 0.5,  // Bottom-Right
+                    -hwidth, -hheight,  hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.5, 0.5,     // Bottom-Left
+                    -hwidth,  hheight,  hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.5, 0.25,    // Top-Left
+                     hwidth,  hheight,  hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.75, 0.25, // Top-Right
 
                     // TOP VERTS
                      hwidth,  hheight, -hdepth, rgba.X, rgba.Y, rgba.Z, rgba.W, 0.5, 0,     // Bottom-Right
@@ -132,16 +132,16 @@ class Mesh {
 
                     verts = [
                         // FRONT VERTS
-                        hwidth, -hheight, -hdepth, 0.75, 0.5, // Bottom-Right
-                        -hwidth, -hheight, -hdepth, 0.5, 0.5, // Bottom-Left
-                        -hwidth,  hheight, -hdepth, 0.5, 0.25, // Top-Left
-                        hwidth,  hheight, -hdepth, 0.75, 0.25, // Top-Right
+                        hwidth, -hheight, -hdepth, 0.25, 0.5, // Bottom-Right
+                        -hwidth, -hheight, -hdepth, 0, 0.5, // Bottom-Left
+                        -hwidth,  hheight, -hdepth, 0, 0.25, // Top-Left
+                        hwidth,  hheight, -hdepth, 0.25, 0.25, // Top-Right
 
                         // BACK VERTS
-                        hwidth, -hheight,  hdepth, 0.25, 0.5, // Bottom-Right
-                        -hwidth, -hheight,  hdepth, 0, 0.5, // Bottom-Left
-                        -hwidth,  hheight,  hdepth, 0, 0.25, // Top-Left
-                        hwidth,  hheight,  hdepth, 0.25, 0.25, // Top-Right
+                        hwidth, -hheight,  hdepth, 0.75, 0.5, // Bottom-Right
+                        -hwidth, -hheight,  hdepth, 0.5, 0.5, // Bottom-Left
+                        -hwidth,  hheight,  hdepth, 0.5, 0.25, // Top-Left
+                        hwidth,  hheight,  hdepth, 0.75, 0.25, // Top-Right
 
                         // TOP VERTS
                         hwidth,  hheight, -hdepth, 0.5, 0, // Bottom-Right

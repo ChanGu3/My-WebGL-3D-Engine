@@ -1457,7 +1457,7 @@
             positionChange = positionChange.add(camPerpDirection.scaled(_Camera.spd * Time_default.fixedTime));
           }
           this.transform.positon = this.transform.positon.add(positionChange);
-          if (Keyboard_default.getKey("ControlLeft").isPressing) {
+          if (Keyboard_default.getKey("KeyC").isPressing) {
             this.transform.positon.y -= _Camera.spd * Time_default.fixedTime;
           }
           if (Keyboard_default.getKey("Space").isPressing) {
@@ -1633,7 +1633,7 @@
                 rgba.Y,
                 rgba.Z,
                 rgba.W,
-                0.75,
+                0.25,
                 0.5,
                 // Bottom-Right
                 -hwidth,
@@ -1643,7 +1643,7 @@
                 rgba.Y,
                 rgba.Z,
                 rgba.W,
-                0.5,
+                0,
                 0.5,
                 // Bottom-Left
                 -hwidth,
@@ -1653,7 +1653,7 @@
                 rgba.Y,
                 rgba.Z,
                 rgba.W,
-                0.5,
+                0,
                 0.25,
                 // Top-Left
                 hwidth,
@@ -1663,7 +1663,7 @@
                 rgba.Y,
                 rgba.Z,
                 rgba.W,
-                0.75,
+                0.25,
                 0.25,
                 // Top-Right
                 // BACK VERTS
@@ -1674,7 +1674,7 @@
                 rgba.Y,
                 rgba.Z,
                 rgba.W,
-                0.25,
+                0.75,
                 0.5,
                 // Bottom-Right
                 -hwidth,
@@ -1684,7 +1684,7 @@
                 rgba.Y,
                 rgba.Z,
                 rgba.W,
-                0,
+                0.5,
                 0.5,
                 // Bottom-Left
                 -hwidth,
@@ -1694,7 +1694,7 @@
                 rgba.Y,
                 rgba.Z,
                 rgba.W,
-                0,
+                0.5,
                 0.25,
                 // Top-Left
                 hwidth,
@@ -1704,7 +1704,7 @@
                 rgba.Y,
                 rgba.Z,
                 rgba.W,
-                0.25,
+                0.75,
                 0.25,
                 // Top-Right
                 // TOP VERTS
@@ -2080,50 +2080,50 @@
                   hwidth,
                   -hheight,
                   -hdepth,
-                  0.75,
+                  0.25,
                   0.5,
                   // Bottom-Right
                   -hwidth,
                   -hheight,
                   -hdepth,
-                  0.5,
+                  0,
                   0.5,
                   // Bottom-Left
                   -hwidth,
                   hheight,
                   -hdepth,
-                  0.5,
+                  0,
                   0.25,
                   // Top-Left
                   hwidth,
                   hheight,
                   -hdepth,
-                  0.75,
+                  0.25,
                   0.25,
                   // Top-Right
                   // BACK VERTS
                   hwidth,
                   -hheight,
                   hdepth,
-                  0.25,
+                  0.75,
                   0.5,
                   // Bottom-Right
                   -hwidth,
                   -hheight,
                   hdepth,
-                  0,
+                  0.5,
                   0.5,
                   // Bottom-Left
                   -hwidth,
                   hheight,
                   hdepth,
-                  0,
+                  0.5,
                   0.25,
                   // Top-Left
                   hwidth,
                   hheight,
                   hdepth,
-                  0.25,
+                  0.75,
                   0.25,
                   // Top-Right
                   // TOP VERTS

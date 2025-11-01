@@ -117,7 +117,7 @@ class Camera extends SceneObject{
         this.transform.positon = this.transform.positon.add(positionChange);
 
         // move down
-        if(Keyboard.getKey("ControlLeft").isPressing) {
+        if(Keyboard.getKey("KeyC").isPressing) {
             this.transform.positon.y -= Camera.spd * Time.fixedTime;
         }
 
