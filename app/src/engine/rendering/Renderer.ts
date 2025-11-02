@@ -51,7 +51,7 @@ class Renderer {
     //
     // Initializes clearing values for gl renderer
     private initializePresets():void {
-        Engine3D.inst.GL.enable(WebGL2RenderingContext.DEPTH_TEST); // tests for z value otherwise last drawn is put into buffer
+        Engine3D.inst.GL.enable(WebGL2RenderingContext.DEPTH_TEST); // tests for z value otherwise last drawn is put into
     }
 
     /*

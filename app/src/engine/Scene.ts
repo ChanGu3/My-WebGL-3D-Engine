@@ -24,7 +24,8 @@ class Scene {
         cubeObj1.transform.positon = new Vec3({X:0, Y:0, Z:0.4});
         cubeObj1.transform.scale = new Vec3({X:0.15, Y:0.15, Z:0.15});
 
-        const cubeObj2 = new SceneObject(Mesh.Meshes['cubeC']);
+        const cubeObj2 = new SceneObject(Mesh.Meshes['sphere']);
+        cubeObj2.Texture = Texture.Textures['metal_scale'];
         this._objects.push(cubeObj2);
         cubeObj2.transform.positon = new Vec3({X:0, Y:0, Z:-0.4});
         cubeObj2.transform.scale = new Vec3({X:0.15, Y:0.15, Z:0.15});

@@ -19,6 +19,10 @@ class Vec4 {
         this.w = vec4.W ?? 0;
     }
 
+    public static create(x:number, y:number, z:number, w:number):Vec4 {
+        return new Vec4({X:x, Y:y, Z:z, W:w});
+    }
+
     public get X(): number {
         return this.x;
     }
@@ -108,6 +112,15 @@ class Vec4 {
             W: 0
         };
         return new Vec4(crossProductVec4);
+    }
+
+    /*
+     * finds the normal of a triangle
+    */
+    public static normalVertex(baseVertex: Vec4, firstVertex:Vec4, secondVertex:Vec4):Vec4{
+        const firstEdge:Vec4 = firstVertex.sub(baseVertex);
+        const secondEdge:Vec4 = secondVertex.sub(baseVertex);
+        return firstEdge.cross(secondEdge);
     }
 
     /**

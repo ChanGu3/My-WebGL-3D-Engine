@@ -174,6 +174,9 @@
           this.z = vec4.Z;
           this.w = vec4.W ?? 0;
         }
+        static create(x, y, z, w) {
+          return new _Vec4({ X: x, Y: y, Z: z, W: w });
+        }
         get X() {
           return this.x;
         }
@@ -253,6 +256,14 @@
             W: 0
           };
           return new _Vec4(crossProductVec4);
+        }
+        /*
+         * finds the normal of a triangle
+        */
+        static normalVertex(baseVertex, firstVertex, secondVertex) {
+          const firstEdge = firstVertex.sub(baseVertex);
+          const secondEdge = secondVertex.sub(baseVertex);
+          return firstEdge.cross(secondEdge);
         }
         /**
          * Returns the vector values as a string.
@@ -852,6 +863,18 @@
           this.y = vec3.Y;
           this.z = vec3.Z;
         }
+        static create(x, y, z) {
+          return new _Vec3({ X: x, Y: y, Z: z });
+        }
+        get X() {
+          return this.x;
+        }
+        get Y() {
+          return this.y;
+        }
+        get Z() {
+          return this.z;
+        }
         /**
          * Returns the length of this vector
          */
@@ -915,6 +938,14 @@
             Z: this.x * other.y - this.y * other.x
           };
           return new _Vec3(crossProductVec4);
+        }
+        /*
+         * finds the normal of a triangle
+        */
+        static normalVertex(baseVertex, firstVertex, secondVertex) {
+          const firstEdge = firstVertex.sub(baseVertex);
+          const secondEdge = secondVertex.sub(baseVertex);
+          return firstEdge.cross(secondEdge);
         }
         /**
          * Returns the vector values as a string.
@@ -1020,6 +1051,9 @@
         static async LoadTextures() {
           _Texture.textures["xor"] = _Texture.XOR_TEXTURE_DATA(256);
           _Texture.textures["texture_map"] = await _Texture.AddToTextures("texture_map.png");
+          _Texture.textures["test"] = await _Texture.AddToTextures("test.gif");
+          _Texture.textures["test2"] = await _Texture.AddToTextures("test2.jpg");
+          _Texture.textures["metal_scale"] = await _Texture.AddToTextures("metal_scale.png");
         }
         // @ts-ignore
         static async AddToTextures(fileName) {
@@ -1307,6 +1341,9 @@
           this.x = vec2.X;
           this.y = vec2.Y;
         }
+        static create(x, y) {
+          return new _Vec2({ X: x, Y: y });
+        }
         get X() {
           return this.x;
         }
@@ -1516,7 +1553,8 @@
           this._objects.push(cubeObj1);
           cubeObj1.transform.positon = new Vec3_default({ X: 0, Y: 0, Z: 0.4 });
           cubeObj1.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
-          const cubeObj2 = new SceneObject_default(Mesh_default.Meshes["cubeC"]);
+          const cubeObj2 = new SceneObject_default(Mesh_default.Meshes["sphere"]);
+          cubeObj2.Texture = Texture_default.Textures["metal_scale"];
           this._objects.push(cubeObj2);
           cubeObj2.transform.positon = new Vec3_default({ X: 0, Y: 0, Z: -0.4 });
           cubeObj2.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
@@ -1591,1176 +1629,265 @@
       init_Camera();
       init_Vec4();
       init_Texture();
+      init_Vec3();
+      init_Vec2();
+      init_ShaderProgram();
       Mesh = class _Mesh {
         static meshes = {};
         verts;
         indis;
         n_verts;
         n_indis;
-        windingOrder;
+        windingOrder = WebGL2RenderingContext.CW;
         cullingFace = WebGL2RenderingContext.BACK;
         isFaceCulling = true;
+        drawingMode = WebGL2RenderingContext.TRIANGLES;
         shaderProgram;
         /**
          * Creates a new mesh and loads it into video memory.
          */
-        constructor(shaderProgram, vertices, indices, windingOrder = WebGL2RenderingContext.CW) {
-          this.verts = Buffer_default.createAndLoadVertexBuffer(vertices, Engine3D_default.inst.GL.STATIC_DRAW);
-          this.n_verts = vertices.length;
-          this.indis = Buffer_default.createAndLoadElementsBuffer(indices, Engine3D_default.inst.GL.STATIC_DRAW);
-          this.n_indis = indices.length;
-          this.windingOrder = windingOrder;
-          this.shaderProgram = shaderProgram;
+        constructor(meshParams) {
+          this.verts = Buffer_default.createAndLoadVertexBuffer(meshParams.verts, Engine3D_default.inst.GL.STATIC_DRAW);
+          this.n_verts = meshParams.verts.length;
+          this.indis = Buffer_default.createAndLoadElementsBuffer(meshParams.indis, Engine3D_default.inst.GL.STATIC_DRAW);
+          this.n_indis = meshParams.indis.length;
+          if (meshParams.windingOrder) {
+            this.windingOrder = meshParams.windingOrder;
+          }
+          ;
+          if (meshParams.drawingMode) {
+            this.drawingMode = meshParams.drawingMode;
+          }
+          this.shaderProgram = meshParams.shaderProgram;
         }
         /**
          * Create a box mesh with the given dimensions and colors.
          */
-        static box(shaderProgram, width, height, depth, isMultiFace = false, isFoldingTexture = false, windingOrder = WebGL2RenderingContext.CCW, rgba = new Vec4_default({ X: 1, Y: 1, Z: 1, W: 1 })) {
+        static box(shaderProgram, width, height, depth, windingOrder = WebGL2RenderingContext.CCW, rgba = new Vec4_default({ X: 1, Y: 1, Z: 1, W: 1 })) {
+          const isColor = shaderProgram.vertexShader.source_attribs["color"] !== void 0;
+          const isUV = shaderProgram.vertexShader.source_attribs["uv"] !== void 0;
+          const isNormal = shaderProgram.vertexShader.source_attribs["normal"] !== void 0;
           let hwidth = width / 2;
           let hheight = height / 2;
           let hdepth = depth / 2;
           let verts = [];
-          if (isMultiFace) {
-            const isColor = shaderProgram.vertexShader.source_attribs["color"] !== void 0;
-            const isUV = shaderProgram.vertexShader.source_attribs["uv"] !== void 0;
-            if (isColor && isUV) {
-              verts = [
-                // FRONT VERTS
-                hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.25,
-                0.5,
-                // Bottom-Right
-                -hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0,
-                0.5,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0,
-                0.25,
-                // Top-Left
-                hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.25,
-                0.25,
-                // Top-Right
-                // BACK VERTS
-                hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.75,
-                0.5,
-                // Bottom-Right
-                -hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.5,
-                0.5,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.5,
-                0.25,
-                // Top-Left
-                hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.75,
-                0.25,
-                // Top-Right
-                // TOP VERTS
-                hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.5,
-                0,
-                // Bottom-Right
-                -hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.75,
-                0,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.75,
-                0.25,
-                // Top-Left
-                hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.5,
-                0.25,
-                // Top-Right
-                // BOTTOM VERTS
-                hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.75,
-                0.75,
-                // Bottom-Right
-                -hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.5,
-                0.75,
-                // Bottom-Left
-                -hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.5,
-                0.5,
-                // Top-Left
-                hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.75,
-                0.5,
-                // Top-Right
-                // LEFT VERTS
-                -hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.5,
-                0.5,
-                // Bottom-Right
-                -hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.25,
-                0.5,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.25,
-                0.25,
-                // Top-Left
-                -hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.5,
-                0.25,
-                // Top-Right
-                // RIGHT VERTS
-                hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                1,
-                0.5,
-                // Bottom-Right
-                hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.75,
-                0.5,
-                // Bottom-Left
-                hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                0.75,
-                0.25,
-                // Top-Left
-                hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                1,
-                0.25
-                // Top-Right
-              ];
-            } else if (isColor) {
-              verts = [
-                // FRONT VERTS
-                hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Right
-                -hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Top-Left
-                hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Top-Right
-                // BACK VERTS
-                hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Right
-                -hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Top-Left
-                hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Top-Right
-                // TOP VERTS
-                hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Right
-                -hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Top-Left
-                hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Top-Right
-                // BOTTOM VERTS
-                hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Right
-                -hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Left
-                -hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Top-Left
-                hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Top-Right
-                // LEFT VERTS
-                -hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Right
-                -hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Top-Left
-                -hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Top-Right
-                // RIGHT VERTS
-                hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Right
-                hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Bottom-Left
-                hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                // Top-Left
-                hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W
-                // Top-Right
-              ];
-            } else if (isUV) {
-              if (isFoldingTexture) {
-                verts = [
-                  // FRONT VERTS
-                  hwidth,
-                  -hheight,
-                  -hdepth,
-                  0.25,
-                  0.5,
-                  // Bottom-Right
-                  -hwidth,
-                  -hheight,
-                  -hdepth,
-                  0,
-                  0.5,
-                  // Bottom-Left
-                  -hwidth,
-                  hheight,
-                  -hdepth,
-                  0,
-                  0.25,
-                  // Top-Left
-                  hwidth,
-                  hheight,
-                  -hdepth,
-                  0.25,
-                  0.25,
-                  // Top-Right
-                  // BACK VERTS
-                  hwidth,
-                  -hheight,
-                  hdepth,
-                  0.75,
-                  0.5,
-                  // Bottom-Right
-                  -hwidth,
-                  -hheight,
-                  hdepth,
-                  0.5,
-                  0.5,
-                  // Bottom-Left
-                  -hwidth,
-                  hheight,
-                  hdepth,
-                  0.5,
-                  0.25,
-                  // Top-Left
-                  hwidth,
-                  hheight,
-                  hdepth,
-                  0.75,
-                  0.25,
-                  // Top-Right
-                  // TOP VERTS
-                  hwidth,
-                  hheight,
-                  -hdepth,
-                  0.5,
-                  0,
-                  // Bottom-Right
-                  -hwidth,
-                  hheight,
-                  -hdepth,
-                  0.75,
-                  0,
-                  // Bottom-Left
-                  -hwidth,
-                  hheight,
-                  hdepth,
-                  0.75,
-                  0.25,
-                  // Top-Left
-                  hwidth,
-                  hheight,
-                  hdepth,
-                  0.5,
-                  0.25,
-                  // Top-Right
-                  // BOTTOM VERTS
-                  hwidth,
-                  -hheight,
-                  -hdepth,
-                  0.75,
-                  0.75,
-                  // Bottom-Right
-                  -hwidth,
-                  -hheight,
-                  -hdepth,
-                  0.5,
-                  0.75,
-                  // Bottom-Left
-                  -hwidth,
-                  -hheight,
-                  hdepth,
-                  0.5,
-                  0.5,
-                  // Top-Left
-                  hwidth,
-                  -hheight,
-                  hdepth,
-                  0.75,
-                  0.5,
-                  // Top-Right
-                  // LEFT VERTS
-                  -hwidth,
-                  -hheight,
-                  -hdepth,
-                  0.5,
-                  0.5,
-                  // Bottom-Right
-                  -hwidth,
-                  -hheight,
-                  hdepth,
-                  0.25,
-                  0.5,
-                  // Bottom-Left
-                  -hwidth,
-                  hheight,
-                  hdepth,
-                  0.25,
-                  0.25,
-                  // Top-Left
-                  -hwidth,
-                  hheight,
-                  -hdepth,
-                  0.5,
-                  0.25,
-                  // Top-Right
-                  // RIGHT VERTS
-                  hwidth,
-                  -hheight,
-                  -hdepth,
-                  1,
-                  0.5,
-                  // Bottom-Right
-                  hwidth,
-                  -hheight,
-                  hdepth,
-                  0.75,
-                  0.5,
-                  // Bottom-Left
-                  hwidth,
-                  hheight,
-                  hdepth,
-                  0.75,
-                  0.25,
-                  // Top-Left
-                  hwidth,
-                  hheight,
-                  -hdepth,
-                  1,
-                  0.25
-                  // Top-Right
-                ];
-              } else {
-                verts = [
-                  // FRONT VERTS
-                  hwidth,
-                  -hheight,
-                  -hdepth,
-                  1,
-                  1,
-                  // Bottom-Right
-                  -hwidth,
-                  -hheight,
-                  -hdepth,
-                  0,
-                  1,
-                  // Bottom-Left
-                  -hwidth,
-                  hheight,
-                  -hdepth,
-                  0,
-                  0,
-                  // Top-Left
-                  hwidth,
-                  hheight,
-                  -hdepth,
-                  1,
-                  0,
-                  // Top-Right
-                  // BACK VERTS
-                  hwidth,
-                  -hheight,
-                  hdepth,
-                  1,
-                  1,
-                  // Bottom-Right
-                  -hwidth,
-                  -hheight,
-                  hdepth,
-                  0,
-                  1,
-                  // Bottom-Left
-                  -hwidth,
-                  hheight,
-                  hdepth,
-                  0,
-                  0,
-                  // Top-Left
-                  hwidth,
-                  hheight,
-                  hdepth,
-                  1,
-                  0,
-                  // Top-Right
-                  // TOP VERTS
-                  hwidth,
-                  hheight,
-                  -hdepth,
-                  1,
-                  1,
-                  // Bottom-Right
-                  -hwidth,
-                  hheight,
-                  -hdepth,
-                  0,
-                  1,
-                  // Bottom-Left
-                  -hwidth,
-                  hheight,
-                  hdepth,
-                  0,
-                  0,
-                  // Top-Left
-                  hwidth,
-                  hheight,
-                  hdepth,
-                  1,
-                  0,
-                  // Top-Right
-                  // BOTTOM VERTS
-                  hwidth,
-                  -hheight,
-                  -hdepth,
-                  1,
-                  1,
-                  // Bottom-Right
-                  -hwidth,
-                  -hheight,
-                  -hdepth,
-                  0,
-                  1,
-                  // Bottom-Left
-                  -hwidth,
-                  -hheight,
-                  hdepth,
-                  0,
-                  0,
-                  // Top-Left
-                  hwidth,
-                  -hheight,
-                  hdepth,
-                  1,
-                  0,
-                  // Top-Right
-                  // LEFT VERTS
-                  -hwidth,
-                  -hheight,
-                  -hdepth,
-                  1,
-                  1,
-                  // Bottom-Right
-                  -hwidth,
-                  -hheight,
-                  hdepth,
-                  0,
-                  1,
-                  // Bottom-Left
-                  -hwidth,
-                  hheight,
-                  hdepth,
-                  0,
-                  0,
-                  // Top-Left
-                  -hwidth,
-                  hheight,
-                  -hdepth,
-                  1,
-                  0,
-                  // Top-Right
-                  // RIGHT VERTS
-                  hwidth,
-                  -hheight,
-                  -hdepth,
-                  1,
-                  1,
-                  // Bottom-Right
-                  hwidth,
-                  -hheight,
-                  hdepth,
-                  0,
-                  1,
-                  // Bottom-Left
-                  hwidth,
-                  hheight,
-                  hdepth,
-                  0,
-                  0,
-                  // Top-Left
-                  hwidth,
-                  hheight,
-                  -hdepth,
-                  1,
-                  0
-                  // Top-Right
-                ];
-              }
-            } else {
-              verts = [
-                // FRONT VERTS
-                hwidth,
-                -hheight,
-                -hdepth,
-                // Bottom-Right (0)
-                -hwidth,
-                -hheight,
-                -hdepth,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                -hdepth,
-                // Top-Left
-                hwidth,
-                hheight,
-                -hdepth,
-                // Top-Right
-                // BACK VERTS
-                hwidth,
-                -hheight,
-                hdepth,
-                // Bottom-Left (4) (ALL OF THESE ARE LOOKING AT THE FRONT NOT LOOKING AT THEM FROM THEIR VIEW MEANING THIS IS THE BOTTOM RIGHT LOOKING FORWARD)
-                -hwidth,
-                -hheight,
-                hdepth,
-                // Bottom-Right
-                -hwidth,
-                hheight,
-                hdepth,
-                // Top-Right
-                hwidth,
-                hheight,
-                hdepth,
-                // Top-Left
-                // TOP VERTS
-                hwidth,
-                hheight,
-                -hdepth,
-                // Bottom-Right (8)
-                -hwidth,
-                hheight,
-                -hdepth,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                hdepth,
-                // Top-Left
-                hwidth,
-                hheight,
-                hdepth,
-                // Top-Right
-                // BOTTOM VERTS
-                hwidth,
-                -hheight,
-                -hdepth,
-                // Bottom-Right (12)
-                -hwidth,
-                -hheight,
-                -hdepth,
-                // Bottom-Left
-                -hwidth,
-                -hheight,
-                hdepth,
-                // Top-Left
-                hwidth,
-                -hheight,
-                hdepth,
-                // Top-Right
-                // LEFT VERTS
-                -hwidth,
-                -hheight,
-                -hdepth,
-                // Bottom-Right (16)
-                -hwidth,
-                -hheight,
-                hdepth,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                hdepth,
-                // Top-Left
-                -hwidth,
-                hheight,
-                -hdepth,
-                // Top-Right
-                // RIGHT VERTS
-                hwidth,
-                -hheight,
-                -hdepth,
-                // Bottom-Right (20)
-                hwidth,
-                -hheight,
-                hdepth,
-                // Bottom-Left
-                hwidth,
-                hheight,
-                hdepth,
-                // Top-Left
-                hwidth,
-                hheight,
-                -hdepth
-                // Top-Right
-              ];
+          function vertexPusher(pos, color, uv, normal) {
+            verts.push(pos.X, pos.Y, pos.Z);
+            if (isColor && color) {
+              verts.push(color.X, color.Y, color.Z, color.W);
             }
-          } else {
-            const isColor = shaderProgram.vertexShader.source_attribs["color"] !== void 0;
-            if (isColor) {
-              verts = [
-                hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                -hwidth,
-                -hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                -hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                hwidth,
-                hheight,
-                -hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                -hwidth,
-                -hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                -hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W,
-                hwidth,
-                hheight,
-                hdepth,
-                rgba.X,
-                rgba.Y,
-                rgba.Z,
-                rgba.W
-              ];
-            } else {
-              verts = [
-                // BACK VERTS
-                hwidth,
-                -hheight,
-                -hdepth,
-                // Bottom-Right
-                -hwidth,
-                -hheight,
-                -hdepth,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                -hdepth,
-                // Top-Left
-                hwidth,
-                hheight,
-                -hdepth,
-                // Top-Right
-                // FRONT VERTS
-                hwidth,
-                -hheight,
-                hdepth,
-                // Bottom-Right
-                -hwidth,
-                -hheight,
-                hdepth,
-                // Bottom-Left
-                -hwidth,
-                hheight,
-                hdepth,
-                // Top-Left
-                hwidth,
-                hheight,
-                hdepth
-                // Top-Right
-              ];
+            if (isUV && uv) {
+              verts.push(uv.X, uv.Y);
+            }
+            if (isNormal && normal) {
+              verts.push(normal.X, normal.Y, normal.Z);
             }
           }
+          function facePusher(br, bl, tl, tr, isNormalForward) {
+            vertexPusher(br.pos, rgba, br.uv, Vec3_default.normalVertex(br.pos, bl.pos, tr.pos).normalized().scaled(isNormalForward ? 1 : -1));
+            vertexPusher(bl.pos, rgba, bl.uv, Vec3_default.normalVertex(bl.pos, tl.pos, br.pos).normalized().scaled(isNormalForward ? 1 : -1));
+            vertexPusher(tl.pos, rgba, tl.uv, Vec3_default.normalVertex(tl.pos, tr.pos, bl.pos).normalized().scaled(isNormalForward ? 1 : -1));
+            vertexPusher(tr.pos, rgba, tr.uv, Vec3_default.normalVertex(tr.pos, br.pos, tl.pos).normalized().scaled(isNormalForward ? 1 : -1));
+          }
+          const frontBR = Vec3_default.create(hwidth, -hheight, -hdepth);
+          const frontBL = Vec3_default.create(-hwidth, -hheight, -hdepth);
+          const frontTL = Vec3_default.create(-hwidth, hheight, -hdepth);
+          const frontTR = Vec3_default.create(hwidth, hheight, -hdepth);
+          facePusher(
+            { pos: frontBR, uv: Vec2_default.create(0.25, 0.5) },
+            { pos: frontBL, uv: Vec2_default.create(0, 0.5) },
+            { pos: frontTL, uv: Vec2_default.create(0, 0.25) },
+            { pos: frontTR, uv: Vec2_default.create(0.25, 0.25) },
+            windingOrder === WebGL2RenderingContext.CCW
+          );
+          const backBR = Vec3_default.create(hwidth, -hheight, hdepth);
+          const backBL = Vec3_default.create(-hwidth, -hheight, hdepth);
+          const backTL = Vec3_default.create(-hwidth, hheight, hdepth);
+          const backTR = Vec3_default.create(hwidth, hheight, hdepth);
+          facePusher(
+            { pos: backBR, uv: Vec2_default.create(0.75, 0.5) },
+            { pos: backBL, uv: Vec2_default.create(0.5, 0.5) },
+            { pos: backTL, uv: Vec2_default.create(0.5, 0.25) },
+            { pos: backTR, uv: Vec2_default.create(0.75, 0.25) },
+            windingOrder === WebGL2RenderingContext.CW
+          );
+          const topBR = Vec3_default.create(hwidth, hheight, -hdepth);
+          const topBL = Vec3_default.create(-hwidth, hheight, -hdepth);
+          const topTL = Vec3_default.create(-hwidth, hheight, hdepth);
+          const topTR = Vec3_default.create(hwidth, hheight, hdepth);
+          facePusher(
+            { pos: topBR, uv: Vec2_default.create(0.5, 0) },
+            { pos: topBL, uv: Vec2_default.create(0.75, 0) },
+            { pos: topTL, uv: Vec2_default.create(0.75, 0.25) },
+            { pos: topTR, uv: Vec2_default.create(0.5, 0.25) },
+            windingOrder === WebGL2RenderingContext.CCW
+          );
+          const bottomBR = Vec3_default.create(hwidth, -hheight, -hdepth);
+          const bottomBL = Vec3_default.create(-hwidth, -hheight, -hdepth);
+          const bottomTL = Vec3_default.create(-hwidth, -hheight, hdepth);
+          const bottomTR = Vec3_default.create(hwidth, -hheight, hdepth);
+          facePusher(
+            { pos: bottomBR, uv: Vec2_default.create(0.75, 0.75) },
+            { pos: bottomBL, uv: Vec2_default.create(0.5, 0.75) },
+            { pos: bottomTL, uv: Vec2_default.create(0.5, 0.5) },
+            { pos: bottomTR, uv: Vec2_default.create(0.75, 0.5) },
+            windingOrder === WebGL2RenderingContext.CW
+          );
+          const leftBR = Vec3_default.create(-hwidth, -hheight, -hdepth);
+          const leftBL = Vec3_default.create(-hwidth, -hheight, hdepth);
+          const leftTL = Vec3_default.create(-hwidth, hheight, hdepth);
+          const leftTR = Vec3_default.create(-hwidth, hheight, -hdepth);
+          facePusher(
+            { pos: leftBR, uv: Vec2_default.create(0.5, 0.5) },
+            { pos: leftBL, uv: Vec2_default.create(0.25, 0.5) },
+            { pos: leftTL, uv: Vec2_default.create(0.25, 0.25) },
+            { pos: leftTR, uv: Vec2_default.create(0.5, 0.25) },
+            windingOrder === WebGL2RenderingContext.CCW
+          );
+          const rightBR = Vec3_default.create(hwidth, -hheight, -hdepth);
+          const rightBL = Vec3_default.create(hwidth, -hheight, hdepth);
+          const rightTL = Vec3_default.create(hwidth, hheight, hdepth);
+          const rightTR = Vec3_default.create(hwidth, hheight, -hdepth);
+          facePusher(
+            { pos: rightBR, uv: Vec2_default.create(1, 0.5) },
+            { pos: rightBL, uv: Vec2_default.create(0.75, 0.5) },
+            { pos: rightTL, uv: Vec2_default.create(0.75, 0.25) },
+            { pos: rightTR, uv: Vec2_default.create(1, 0.25) },
+            windingOrder === WebGL2RenderingContext.CW
+          );
+          console.log(verts);
           let indis = [];
-          if (isMultiFace) {
-            if (windingOrder === WebGL2RenderingContext.CW) {
-              indis = [
-                // clockwise winding
-                0,
-                1,
-                2,
-                2,
-                3,
-                0,
-                // FRONT-FACE
-                20,
-                21,
-                23,
-                23,
-                21,
-                22,
-                // RIGHT-FACE
-                5,
-                4,
-                7,
-                7,
-                6,
-                5,
-                // BACK-FACE
-                16,
-                17,
-                19,
-                19,
-                17,
-                18,
-                // LEFT-FACE
-                8,
-                9,
-                11,
-                11,
-                9,
-                10,
-                // TOP-FACE
-                12,
-                13,
-                15,
-                15,
-                13,
-                14
-                // BOTTOM-FACE
-              ];
-            } else {
-              indis = [
-                // counter-clockwise winding
-                0,
-                3,
-                2,
-                2,
-                1,
-                0,
-                20,
-                21,
-                22,
-                22,
-                23,
-                20,
-                5,
-                6,
-                7,
-                7,
-                4,
-                5,
-                16,
-                19,
-                18,
-                18,
-                17,
-                16,
-                8,
-                11,
-                10,
-                10,
-                9,
-                8,
-                12,
-                13,
-                14,
-                14,
-                15,
-                12
-              ];
-            }
+          if (windingOrder === WebGL2RenderingContext.CW) {
+            indis = [
+              // clockwise winding
+              0,
+              1,
+              2,
+              2,
+              3,
+              0,
+              // FRONT-FACE
+              20,
+              21,
+              23,
+              23,
+              21,
+              22,
+              // RIGHT-FACE
+              5,
+              4,
+              7,
+              7,
+              6,
+              5,
+              // BACK-FACE
+              16,
+              17,
+              19,
+              19,
+              17,
+              18,
+              // LEFT-FACE
+              8,
+              9,
+              11,
+              11,
+              9,
+              10,
+              // TOP-FACE
+              12,
+              13,
+              15,
+              15,
+              13,
+              14
+              // BOTTOM-FACE
+            ];
           } else {
-            if (windingOrder === WebGL2RenderingContext.CW) {
-              indis = [
-                // clockwise winding
-                0,
-                1,
-                2,
-                2,
-                3,
-                0,
-                4,
-                0,
-                3,
-                3,
-                7,
-                4,
-                5,
-                4,
-                7,
-                7,
-                6,
-                5,
-                1,
-                5,
-                6,
-                6,
-                2,
-                1,
-                3,
-                2,
-                6,
-                6,
-                7,
-                3,
-                4,
-                5,
-                1,
-                1,
-                0,
-                4
-              ];
-            } else {
-              indis = [
-                // counter-clockwise winding
-                0,
-                3,
-                2,
-                2,
-                1,
-                0,
-                4,
-                7,
-                3,
-                3,
-                0,
-                4,
-                5,
-                6,
-                7,
-                7,
-                4,
-                5,
-                1,
-                2,
-                6,
-                6,
-                5,
-                1,
-                3,
-                7,
-                6,
-                6,
-                2,
-                3,
-                4,
-                0,
-                1,
-                1,
-                5,
-                4
-              ];
+            indis = [
+              // counter-clockwise winding
+              0,
+              3,
+              2,
+              2,
+              1,
+              0,
+              20,
+              21,
+              22,
+              22,
+              23,
+              20,
+              5,
+              6,
+              7,
+              7,
+              4,
+              5,
+              16,
+              19,
+              18,
+              18,
+              17,
+              16,
+              8,
+              11,
+              10,
+              10,
+              9,
+              8,
+              12,
+              13,
+              14,
+              14,
+              15,
+              12
+            ];
+          }
+          const mesh = new _Mesh({ shaderProgram, verts, indis, windingOrder });
+          return mesh;
+        }
+        /**
+         * Create a box mesh with the given dimensions and colors.
+         */
+        static sphereUV(shaderProgram, subDivisions, scale, rgba = new Vec4_default({ X: 1, Y: 1, Z: 1, W: 1 })) {
+          const isColor = shaderProgram.vertexShader.source_attribs["color"] !== void 0;
+          const isUV = shaderProgram.vertexShader.source_attribs["uv"] !== void 0;
+          const isNormal = shaderProgram.vertexShader.source_attribs["normal"] !== void 0;
+          const layers = subDivisions + 1;
+          let verts = [];
+          let indis = [];
+          for (let layer = 0; layer < layers; layer++) {
+            let y_turns = layer / subDivisions / 2;
+            let y = Math.cos(y_turns * Mat4_default.tau_to_radians(1)) / 2 * scale;
+            for (let subdiv = 0; subdiv <= subDivisions; subdiv++) {
+              let turns = subdiv / subDivisions;
+              let rads = turns * Mat4_default.tau_to_radians(1);
+              let radius_scale = Math.sin(y_turns * Mat4_default.tau_to_radians(1));
+              let x = Math.cos(rads) / 2 * radius_scale;
+              let z = Math.sin(rads) / 2 * radius_scale;
+              verts.push(x, y, z);
+              if (isColor) {
+                verts.push(rgba.X, rgba.Y, rgba.Z, rgba.Z);
+              }
+              if (isUV) {
+                verts.push(subdiv / subDivisions, layer / subDivisions);
+              }
+              if (isNormal) {
+                const normal = Vec3_default.create(x, y, z).normalized();
+                verts.push(normal.X, normal.Y, normal.Z);
+              }
+              if (layer < layers) {
+                indis.push(subdiv + layer * subDivisions, subdiv + 1 + (layer + 1) * subDivisions);
+              }
+            }
+            if (layer < layers - 1) {
+              indis.push(65535);
             }
           }
-          const mesh = new _Mesh(shaderProgram, verts, indis);
-          mesh.windingOrder = WebGL2RenderingContext.CCW;
+          const windingOrder = WebGL2RenderingContext.CCW;
+          const drawingMode = WebGL2RenderingContext.TRIANGLE_STRIP;
+          const mesh = new _Mesh({ shaderProgram, verts, indis, drawingMode, windingOrder });
           return mesh;
         }
         /**
@@ -2768,8 +1895,8 @@
          */
         static from_obj_text(shaderProgram, text) {
           const lines = text.split(/\r?\n/);
-          const vertices = [];
-          const indices = [];
+          const verts = [];
+          const indis = [];
           for (let line of lines) {
             let elements = line.trim().split(" ");
             switch (elements[0]) {
@@ -2779,7 +1906,7 @@
                   if (isNaN(parsedFloat)) {
                     throw new Error(`${elements[i]} .obj 'f' vertex values must be a valid floating point number`);
                   } else {
-                    vertices.push(parsedFloat);
+                    verts.push(parsedFloat);
                   }
                 }
                 break;
@@ -2789,7 +1916,7 @@
                   if (isNaN(parsedInt) || parsedInt < 0) {
                     throw new Error(`${elements[i]} .obj 'f' elements must be a unsigned integer`);
                   } else {
-                    indices.push(parsedInt - 1);
+                    indis.push(parsedInt - 1);
                   }
                 }
                 break;
@@ -2798,7 +1925,7 @@
                 break;
             }
           }
-          return new _Mesh(shaderProgram, vertices, indices);
+          return new _Mesh({ shaderProgram, verts, indis });
         }
         /**
          * Asynchronously load the obj file as a mesh.
@@ -2857,7 +1984,7 @@
             this.shaderProgram.setViewUniform_Mat4x4(Mat4_default.identity());
           }
           this.shaderProgram.setModelUniform_Mat4x4(transform.modelMatrix());
-          Engine3D_default.inst.GL.drawElements(WebGL2RenderingContext.TRIANGLES, this.n_indis, WebGL2RenderingContext.UNSIGNED_SHORT, 0);
+          Engine3D_default.inst.GL.drawElements(this.drawingMode, this.n_indis, WebGL2RenderingContext.UNSIGNED_SHORT, 0);
           Buffer_default.bindArrayBuffer(prevVertBuffer);
           Buffer_default.bindElementArrayBuffer(prevElemBuffer);
           Texture_default.unBindTexture();
@@ -2904,7 +2031,8 @@
         static async LoadMeshes() {
           this.AddToMeshes("loaded", await _Mesh.get_obj_from_file("teapot.obj", ShaderProgram_default.ShaderPrograms["coordinates"]));
           this.meshes["cubeC"] = _Mesh.box(ShaderProgram_default.ShaderPrograms["coordinates"], 1, 1, 1);
-          this.meshes["cubeD"] = _Mesh.box(ShaderProgram_default.ShaderPrograms["default"], 1, 1, 1, true, true);
+          this.meshes["cubeD"] = _Mesh.box(ShaderProgram_default.ShaderPrograms["default"], 1, 1, 1);
+          this.meshes["sphere"] = _Mesh.sphereUV(ShaderProgram_default.ShaderPrograms["default"], 100, 1);
         }
         static AddToMeshes(name, mesh) {
           this.meshes[name] = mesh;

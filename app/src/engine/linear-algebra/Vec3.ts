@@ -6,14 +6,30 @@ export type Vec3_T = {
 
 class Vec3 {
 
-    public x: number;
-    public y: number;
-    public z: number;
+    private x: number;
+    private y: number;
+    private z: number;
 
     constructor( vec3: Vec3_T = {X:0, Y:0, Z:0} ) {
         this.x = vec3.X;
         this.y = vec3.Y;
         this.z = vec3.Z;
+    }
+
+    public static create(x:number, y:number, z:number):Vec3 {
+        return new Vec3({X:x, Y:y, Z:z});
+    }
+
+    public get X(): number {
+        return this.x;
+    }
+
+    public get Y(): number {
+        return this.y;
+    }
+
+    public get Z(): number {
+        return this.z;
     }
 
     /**
@@ -85,6 +101,15 @@ class Vec3 {
             Z: this.x * other.y - this.y * other.x,
         };
         return new Vec3(crossProductVec4);
+    }
+
+    /*
+     * finds the normal of a triangle
+    */
+    public static normalVertex(baseVertex: Vec3, firstVertex:Vec3, secondVertex:Vec3):Vec3{
+        const firstEdge:Vec3 = firstVertex.sub(baseVertex);
+        const secondEdge:Vec3 = secondVertex.sub(baseVertex);
+        return firstEdge.cross(secondEdge);
     }
 
     /**

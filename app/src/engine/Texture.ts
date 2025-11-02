@@ -69,6 +69,9 @@ class Texture {
     public static async LoadTextures(): Promise<void> {
         Texture.textures['xor'] = Texture.XOR_TEXTURE_DATA(256);
         Texture.textures['texture_map'] = await Texture.AddToTextures('texture_map.png');
+        Texture.textures['test'] = await Texture.AddToTextures('test.gif');
+        Texture.textures['test2'] = await Texture.AddToTextures('test2.jpg');
+        Texture.textures['metal_scale'] = await Texture.AddToTextures('metal_scale.png');
     }
 
     // @ts-ignore

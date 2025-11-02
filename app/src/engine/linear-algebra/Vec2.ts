@@ -13,6 +13,10 @@ class Vec2 {
         this.y = vec2.Y;
     }
 
+    public static create(x:number, y:number):Vec2 {
+        return new Vec2({X:x, Y:y});
+    }
+
     public get X(): number {
         return this.x;
     }
