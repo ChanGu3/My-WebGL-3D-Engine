@@ -21,6 +21,7 @@ class ShaderProgram {
     private static readonly coord_count:number = 3;
     private static readonly color_count:number = 4;
     private static readonly uv_count:number = 2;
+    private static readonly normal_count:number = 3;
 
     private _vertexShader:Shader;
     private _fragmentShader:Shader;
@@ -120,6 +121,7 @@ class ShaderProgram {
         interleavedLength = (this._vertexShader.source_attribs['coordinates'] !== undefined) ? interleavedLength + ShaderProgram.coord_count : interleavedLength;
         interleavedLength = (this._vertexShader.source_attribs['color'] !== undefined) ? interleavedLength + ShaderProgram.color_count : interleavedLength;
         interleavedLength = (this._vertexShader.source_attribs['uv'] !== undefined) ? interleavedLength + ShaderProgram.uv_count : interleavedLength;
+        interleavedLength = (this._vertexShader.source_attribs['normal'] !== undefined) ? interleavedLength + ShaderProgram.normal_count : interleavedLength;
 
         let currOffset:number = 0;
 
@@ -142,6 +144,13 @@ class ShaderProgram {
             Engine3D.inst.GL.vertexAttribPointer(uvLoc, ShaderProgram.uv_count, WebGL2RenderingContext.FLOAT, false, interleavedLength*Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
             Engine3D.inst.GL.enableVertexAttribArray(uvLoc);
             currOffset += ShaderProgram.uv_count;
+        }
+
+        if(this._vertexShader.source_attribs['normal'] !== undefined) {
+            const uvLoc:number = this.vertexShader.source_attribs['normal'].location as number;
+            Engine3D.inst.GL.vertexAttribPointer(uvLoc, ShaderProgram.uv_count, WebGL2RenderingContext.FLOAT, false, interleavedLength*Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
+            Engine3D.inst.GL.enableVertexAttribArray(uvLoc);
+            currOffset += ShaderProgram.normal_count;
         }
     }
 }

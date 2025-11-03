@@ -8,7 +8,7 @@ class VertexShader extends Shader {
     }
 
     public findThenAddExistingAttributes(shaderProgram:WebGLProgram):void {
-        let atrFieldNames:string[] = ['coordinates', 'color', 'uv'];
+        let atrFieldNames:string[] = ['coordinates', 'color', 'uv', 'normal'];
         let atrUniNames:string[] = ['model', 'projection', 'view'];
 
         atrUniNames.forEach((atrUniName:string):void => {

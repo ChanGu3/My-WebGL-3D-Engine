@@ -118,7 +118,7 @@
           super(Engine3D_default.inst.GL.VERTEX_SHADER, fileName);
         }
         findThenAddExistingAttributes(shaderProgram) {
-          let atrFieldNames = ["coordinates", "color", "uv"];
+          let atrFieldNames = ["coordinates", "color", "uv", "normal"];
           let atrUniNames = ["model", "projection", "view"];
           atrUniNames.forEach((atrUniName) => {
             let atrUniLoc = super.CheckUniformAttribute(shaderProgram, atrUniName);
@@ -683,6 +683,7 @@
         static coord_count = 3;
         static color_count = 4;
         static uv_count = 2;
+        static normal_count = 3;
         _vertexShader;
         _fragmentShader;
         _program;
@@ -761,6 +762,7 @@
           interleavedLength = this._vertexShader.source_attribs["coordinates"] !== void 0 ? interleavedLength + _ShaderProgram.coord_count : interleavedLength;
           interleavedLength = this._vertexShader.source_attribs["color"] !== void 0 ? interleavedLength + _ShaderProgram.color_count : interleavedLength;
           interleavedLength = this._vertexShader.source_attribs["uv"] !== void 0 ? interleavedLength + _ShaderProgram.uv_count : interleavedLength;
+          interleavedLength = this._vertexShader.source_attribs["normal"] !== void 0 ? interleavedLength + _ShaderProgram.normal_count : interleavedLength;
           let currOffset = 0;
           if (this._vertexShader.source_attribs["coordinates"] !== void 0) {
             const cordLoc = this.vertexShader.source_attribs["coordinates"].location;
@@ -779,6 +781,12 @@
             Engine3D_default.inst.GL.vertexAttribPointer(uvLoc, _ShaderProgram.uv_count, WebGL2RenderingContext.FLOAT, false, interleavedLength * Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
             Engine3D_default.inst.GL.enableVertexAttribArray(uvLoc);
             currOffset += _ShaderProgram.uv_count;
+          }
+          if (this._vertexShader.source_attribs["normal"] !== void 0) {
+            const uvLoc = this.vertexShader.source_attribs["normal"].location;
+            Engine3D_default.inst.GL.vertexAttribPointer(uvLoc, _ShaderProgram.uv_count, WebGL2RenderingContext.FLOAT, false, interleavedLength * Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
+            Engine3D_default.inst.GL.enableVertexAttribArray(uvLoc);
+            currOffset += _ShaderProgram.normal_count;
           }
         }
       };

@@ -3,6 +3,7 @@ precision mediump float;
 
 in vec4 v_color;
 in vec2 v_uv;
+in vec3 v_normal;
 out vec4 f_color;
 
 uniform sampler2D tex_0;
