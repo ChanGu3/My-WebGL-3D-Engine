@@ -7,12 +7,18 @@ import Vec4 from "./linear-algebra/Vec4";
 import Time from "./Time";
 import Vec2, {Vec2_T} from "./linear-algebra/Vec2";
 import Engine3D from "./Engine3D";
+import Mesh from "./rendering/Mesh";
+import ShaderProgram from "./rendering/shaders/ShaderProgram";
 
 class CameraObject extends SceneObject{
 
     private degrees: number = 60;
     private readonly near: number = 0.025;
     private readonly far: number = 10;
+
+    constructor(shaderProgram: ShaderProgram, mesh: Mesh) {
+        super(shaderProgram, mesh);
+    }
 
     /*
      * gets the perspective matrix of this current camera

@@ -3,10 +3,7 @@ import FragmentShader from "./FragmentShader";
 import Engine3D from "../../Engine3D";
 import mat4, {UniqueMatrix} from "../../linear-algebra/Mat4";
 import Shader from "./Shader";
-import shader from "./Shader";
-import Mat4 from "../../linear-algebra/Mat4";
-import Viewport from "../Viewport";
-import Mesh from "../Mesh";
+
 import Vec3 from "../../linear-algebra/Vec3";
 
 type SHADERPROGRAMS = {
@@ -124,7 +121,7 @@ class ShaderProgram {
         Engine3D.inst.GL.uniformMatrix4fv( this.vertexShader.source_attribs['projection'].location, true, mat4.getData());
     }
 
-    public setPhongLighting(mat_ambient:number, mat_diffuse:number, mat_specular:number, mat_shininess:number, sun_dir:Vec3, sun_color:Vec3):void {
+    public setPhongLighting(mat_ambient:number, mat_diffuse:number, mat_specular:number, mat_shininess:number):void {
         if(this.fragmentShader.source_attribs['mat_ambient'] != undefined) {
             Engine3D.inst.GL.uniform1f( this.fragmentShader.source_attribs['mat_ambient'].location, mat_ambient );
         }
@@ -137,15 +134,29 @@ class ShaderProgram {
         if(this.fragmentShader.source_attribs['mat_specular'] != undefined) {
             Engine3D.inst.GL.uniform1f( this.fragmentShader.source_attribs['mat_specular'].location, mat_specular );
         }
-        if(this.fragmentShader.source_attribs['sun_dir'] != undefined) {
-            Engine3D.inst.GL.uniform3f( this.fragmentShader.source_attribs['sun_dir'].location,  sun_dir.X, sun_dir.Y, sun_dir.Z);
-        }
-        if(this.fragmentShader.source_attribs['sun_color'] != undefined) {
-            Engine3D.inst.GL.uniform3f( this.fragmentShader.source_attribs['sun_color'].location, sun_color.X, sun_color.Y, sun_color.Z);
+    }
+
+    public setDirectionalLights(directional_light_dir_list:number[], directional_light_color_list:number[], directionalLightsCount:number):void {
+        if(this.fragmentShader.source_attribs['directional_light_dir'] != undefined
+            && this.fragmentShader.source_attribs['directional_light_color'] != undefined
+            && this.fragmentShader.source_attribs['directional_light_count'] != undefined) {
+            Engine3D.inst.GL.uniform3fv( this.fragmentShader.source_attribs['directional_light_dir'].location, new Float32Array(directional_light_dir_list));
+            Engine3D.inst.GL.uniform3fv( this.fragmentShader.source_attribs['directional_light_color'].location, new Float32Array(directional_light_color_list));
+            Engine3D.inst.GL.uniform1i( this.fragmentShader.source_attribs['directional_light_count'].location, directionalLightsCount);
         }
     }
 
-
+    public setPointLights(point_light_pos_list:number[], point_light_color_list:number[], point_light_coefficient:number[], pointLightsCount:number):void {
+        if(this.fragmentShader.source_attribs['point_light_pos'] != undefined
+            && this.fragmentShader.source_attribs['point_light_color'] != undefined
+            && this.fragmentShader.source_attribs['point_light_count'] != undefined
+            && this.fragmentShader.source_attribs['point_light_coefficient'] != undefined) {
+            Engine3D.inst.GL.uniform3fv( this.fragmentShader.source_attribs['point_light_pos'].location, new Float32Array(point_light_pos_list));
+            Engine3D.inst.GL.uniform3fv( this.fragmentShader.source_attribs['point_light_color'].location, new Float32Array(point_light_color_list));
+            Engine3D.inst.GL.uniform1fv( this.fragmentShader.source_attribs['point_light_coefficient'].location, new Float32Array(point_light_coefficient));
+            Engine3D.inst.GL.uniform1i( this.fragmentShader.source_attribs['point_light_count'].location, pointLightsCount);
+        }
+    }
 
     public setVertexAttributesToBuffer():void {
         let interleavedLength:number = 0;

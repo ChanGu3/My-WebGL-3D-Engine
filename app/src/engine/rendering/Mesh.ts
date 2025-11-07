@@ -1,15 +1,10 @@
 import Buffer from "./shaders/Buffer";
 import Engine3D from "../Engine3D";
 import ShaderProgram from "./shaders/ShaderProgram";
-import Mat4, { UniqueMatrix } from "../linear-algebra/Mat4";
-import Transform from "../Transform";
-import Editor from "../Editor";
-import CameraObject from "../CameraObject";
+import Mat4 from "../linear-algebra/Mat4";
 import Vec4 from "../linear-algebra/Vec4";
-import Texture from "./Texture";
 import Vec3 from "../linear-algebra/Vec3";
 import Vec2 from "../linear-algebra/Vec2";
-import vec3 from "../linear-algebra/Vec3";
 import shaderProgram from "./shaders/ShaderProgram";
 
 type MESHES = {
@@ -17,7 +12,6 @@ type MESHES = {
 };
 
 type MeshParams = {
-    shaderProgram: ShaderProgram;
     verts:number[];
     indis:number[];
     drawingMode?:number;
@@ -44,7 +38,7 @@ class Mesh {
         this.indis = Buffer.createAndLoadElementsBuffer(meshParams.indis, Engine3D.inst.GL.STATIC_DRAW );
         this.n_indis = meshParams.indis.length;
 
-        if(meshParams.windingOrder) { this.windingOrder = meshParams.windingOrder };
+        if(meshParams.windingOrder) { this.windingOrder = meshParams.windingOrder; }
         if(meshParams.drawingMode) { this.drawingMode = meshParams.drawingMode; }
     }
 
@@ -74,10 +68,6 @@ class Mesh {
         }
 
         function facePusher(br:vectorUVPair, bl:vectorUVPair, tl:vectorUVPair, tr:vectorUVPair, isNormalForward:boolean):void {
-            //console.log(Vec3.normalVertex(br.pos, bl.pos, tr.pos).normalized().scaled((isNormalForward) ? 1 : -1));
-            //console.log(Vec3.normalVertex(bl.pos, tl.pos, br.pos).normalized().scaled((isNormalForward) ? 1 : -1));
-            //console.log(Vec3.normalVertex(tl.pos, tr.pos, bl.pos).normalized().scaled((isNormalForward) ? 1 : -1));
-            //console.log(Vec3.normalVertex(tr.pos, br.pos, tl.pos).normalized().scaled((isNormalForward) ? 1 : -1));
             vertexPusher(br.pos, rgba, br.uv, Vec3.normalVertex(br.pos, bl.pos, tr.pos).normalized().scaled((isNormalForward) ? 1 : -1));
             vertexPusher(bl.pos, rgba, bl.uv, Vec3.normalVertex(bl.pos, tl.pos, br.pos).normalized().scaled((isNormalForward) ? 1 : -1));
             vertexPusher(tl.pos, rgba, tl.uv, Vec3.normalVertex(tl.pos, tr.pos, bl.pos).normalized().scaled((isNormalForward) ? 1 : -1));
@@ -186,7 +176,7 @@ class Mesh {
             ];
         }
 
-        const mesh:Mesh = new Mesh( {shaderProgram, verts, indis, windingOrder});
+        const mesh:Mesh = new Mesh( {verts, indis, windingOrder});
         return mesh;
     }
 
@@ -199,6 +189,7 @@ class Mesh {
         const isNormal:boolean = (shaderProgram.vertexShader.source_attribs['normal'] !== undefined);
 
         const layers:number = subDivisions + 1;
+        const vertCount:number = layers * (subDivisions + 1); // yes I could use layers ^2 but doesn't show what this means
         let verts:number[] = [];
         let indis:number[] = [];
 
@@ -224,7 +215,15 @@ class Mesh {
                 }
 
                 if(layer < layers) {
-                    indis.push(subdiv + (layer * subDivisions), (subdiv + 1) +  ((layer+1) * (subDivisions)));
+                    const leftVert = subdiv + (layer * subDivisions);
+                    const rightVert = (subdiv + 1)  +  ((layer+1) * (subDivisions));
+                    indis.push(leftVert);
+                    if(rightVert === vertCount){
+                        indis.push(0);
+                    } else {
+                        indis.push(rightVert);
+                    }
+
                 }
             }
             if(layer < layers-1) { indis.push(65535); }
@@ -232,7 +231,7 @@ class Mesh {
 
         const windingOrder:number = WebGL2RenderingContext.CCW;
         const drawingMode:number = WebGL2RenderingContext.TRIANGLE_STRIP;
-        const mesh:Mesh = new Mesh( {shaderProgram, verts, indis, drawingMode, windingOrder} );
+        const mesh:Mesh = new Mesh( {verts, indis, drawingMode, windingOrder} );
         return mesh;
     }
 
@@ -277,7 +276,7 @@ class Mesh {
             }
         }
 
-        return new Mesh({shaderProgram, verts, indis});
+        return new Mesh({verts, indis});
     }
 
     /**
@@ -403,6 +402,7 @@ class Mesh {
         this.AddToMeshes('loaded', await Mesh.get_obj_from_file("teapot.obj", ShaderProgram.ShaderPrograms['coordinates']));
         this.meshes['cubeC'] = Mesh.box(ShaderProgram.ShaderPrograms['coordinates'], 1, 1, 1);
         this.meshes['cubeD'] = Mesh.box(ShaderProgram.ShaderPrograms['default'], 1, 1, 1);
+        this.meshes['sphereC'] = Mesh.sphereUV(shaderProgram.ShaderPrograms['coordinates'], 10, 1);
         this.meshes['sphere'] = Mesh.sphereUV(shaderProgram.ShaderPrograms['default'], 24, 1);
     }
 
@@ -417,3 +417,4 @@ class Mesh {
 }
 
 export default Mesh;
+

@@ -70,6 +70,8 @@ abstract class Shader {
 
         const uniformAttribLoc:WebGLUniformLocation = Engine3D.inst.GL.getUniformLocation(shaderProgram, atr);
 
+        //console.log(atr, uniformAttribLoc, shaderProgram);
+
         let err = Engine3D.inst.GL.getError()
         if ( err != 0 ) {
             throw new Error( 'invalid program. Error: ' + err );

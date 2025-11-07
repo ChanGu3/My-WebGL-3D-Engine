@@ -156,7 +156,20 @@
         }
         findThenAddExistingAttributes(shaderProgram) {
           let atrFieldNames = [];
-          let atrUniNames = ["mat_ambient", "mat_shininess", "mat_diffuse", "mat_specular", "sun_dir", "sun_color", "view_pos"];
+          let atrUniNames = [
+            "mat_ambient",
+            "mat_shininess",
+            "mat_diffuse",
+            "mat_specular",
+            "view_pos",
+            "directional_light_dir",
+            "directional_light_color",
+            "directional_light_count",
+            "point_light_pos",
+            "point_light_color",
+            "point_light_count",
+            "point_light_coefficient"
+          ];
           atrUniNames.forEach((atrUniName) => {
             let atrUniLoc = super.CheckUniformAttribute(shaderProgram, atrUniName);
             if (atrUniLoc != null) {
@@ -779,7 +792,7 @@
         setProjectionUniform_Mat4x4(mat4) {
           Engine3D_default.inst.GL.uniformMatrix4fv(this.vertexShader.source_attribs["projection"].location, true, mat4.getData());
         }
-        setPhongLighting(mat_ambient, mat_diffuse, mat_specular, mat_shininess, sun_dir, sun_color) {
+        setPhongLighting(mat_ambient, mat_diffuse, mat_specular, mat_shininess) {
           if (this.fragmentShader.source_attribs["mat_ambient"] != void 0) {
             Engine3D_default.inst.GL.uniform1f(this.fragmentShader.source_attribs["mat_ambient"].location, mat_ambient);
           }
@@ -792,11 +805,20 @@
           if (this.fragmentShader.source_attribs["mat_specular"] != void 0) {
             Engine3D_default.inst.GL.uniform1f(this.fragmentShader.source_attribs["mat_specular"].location, mat_specular);
           }
-          if (this.fragmentShader.source_attribs["sun_dir"] != void 0) {
-            Engine3D_default.inst.GL.uniform3f(this.fragmentShader.source_attribs["sun_dir"].location, sun_dir.X, sun_dir.Y, sun_dir.Z);
+        }
+        setDirectionalLights(directional_light_dir_list, directional_light_color_list, directionalLightsCount) {
+          if (this.fragmentShader.source_attribs["directional_light_dir"] != void 0 && this.fragmentShader.source_attribs["directional_light_color"] != void 0 && this.fragmentShader.source_attribs["directional_light_count"] != void 0) {
+            Engine3D_default.inst.GL.uniform3fv(this.fragmentShader.source_attribs["directional_light_dir"].location, new Float32Array(directional_light_dir_list));
+            Engine3D_default.inst.GL.uniform3fv(this.fragmentShader.source_attribs["directional_light_color"].location, new Float32Array(directional_light_color_list));
+            Engine3D_default.inst.GL.uniform1i(this.fragmentShader.source_attribs["directional_light_count"].location, directionalLightsCount);
           }
-          if (this.fragmentShader.source_attribs["sun_color"] != void 0) {
-            Engine3D_default.inst.GL.uniform3f(this.fragmentShader.source_attribs["sun_color"].location, sun_color.X, sun_color.Y, sun_color.Z);
+        }
+        setPointLights(point_light_pos_list, point_light_color_list, point_light_coefficient, pointLightsCount) {
+          if (this.fragmentShader.source_attribs["point_light_pos"] != void 0 && this.fragmentShader.source_attribs["point_light_color"] != void 0 && this.fragmentShader.source_attribs["point_light_count"] != void 0 && this.fragmentShader.source_attribs["point_light_coefficient"] != void 0) {
+            Engine3D_default.inst.GL.uniform3fv(this.fragmentShader.source_attribs["point_light_pos"].location, new Float32Array(point_light_pos_list));
+            Engine3D_default.inst.GL.uniform3fv(this.fragmentShader.source_attribs["point_light_color"].location, new Float32Array(point_light_color_list));
+            Engine3D_default.inst.GL.uniform1fv(this.fragmentShader.source_attribs["point_light_coefficient"].location, new Float32Array(point_light_coefficient));
+            Engine3D_default.inst.GL.uniform1i(this.fragmentShader.source_attribs["point_light_count"].location, pointLightsCount);
           }
         }
         setVertexAttributesToBuffer() {
@@ -1112,7 +1134,6 @@
           if (meshParams.windingOrder) {
             this.windingOrder = meshParams.windingOrder;
           }
-          ;
           if (meshParams.drawingMode) {
             this.drawingMode = meshParams.drawingMode;
           }
@@ -1300,7 +1321,7 @@
               12
             ];
           }
-          const mesh = new _Mesh({ shaderProgram, verts, indis, windingOrder });
+          const mesh = new _Mesh({ verts, indis, windingOrder });
           return mesh;
         }
         /**
@@ -1311,6 +1332,7 @@
           const isUV = shaderProgram.vertexShader.source_attribs["uv"] !== void 0;
           const isNormal = shaderProgram.vertexShader.source_attribs["normal"] !== void 0;
           const layers = subDivisions + 1;
+          const vertCount = layers * (subDivisions + 1);
           let verts = [];
           let indis = [];
           for (let layer = 0; layer < layers; layer++) {
@@ -1334,7 +1356,14 @@
                 verts.push(normal.X, normal.Y, normal.Z);
               }
               if (layer < layers) {
-                indis.push(subdiv + layer * subDivisions, subdiv + 1 + (layer + 1) * subDivisions);
+                const leftVert = subdiv + layer * subDivisions;
+                const rightVert = subdiv + 1 + (layer + 1) * subDivisions;
+                indis.push(leftVert);
+                if (rightVert === vertCount) {
+                  indis.push(0);
+                } else {
+                  indis.push(rightVert);
+                }
               }
             }
             if (layer < layers - 1) {
@@ -1343,7 +1372,7 @@
           }
           const windingOrder = WebGL2RenderingContext.CCW;
           const drawingMode = WebGL2RenderingContext.TRIANGLE_STRIP;
-          const mesh = new _Mesh({ shaderProgram, verts, indis, drawingMode, windingOrder });
+          const mesh = new _Mesh({ verts, indis, drawingMode, windingOrder });
           return mesh;
         }
         /**
@@ -1381,7 +1410,7 @@
                 break;
             }
           }
-          return new _Mesh({ shaderProgram, verts, indis });
+          return new _Mesh({ verts, indis });
         }
         /**
          * Asynchronously load the obj file as a mesh.
@@ -1484,6 +1513,7 @@
           this.AddToMeshes("loaded", await _Mesh.get_obj_from_file("teapot.obj", ShaderProgram_default.ShaderPrograms["coordinates"]));
           this.meshes["cubeC"] = _Mesh.box(ShaderProgram_default.ShaderPrograms["coordinates"], 1, 1, 1);
           this.meshes["cubeD"] = _Mesh.box(ShaderProgram_default.ShaderPrograms["default"], 1, 1, 1);
+          this.meshes["sphereC"] = _Mesh.sphereUV(ShaderProgram_default.ShaderPrograms["coordinates"], 10, 1);
           this.meshes["sphere"] = _Mesh.sphereUV(ShaderProgram_default.ShaderPrograms["default"], 24, 1);
         }
         static AddToMeshes(name, mesh) {
@@ -1677,8 +1707,8 @@
       init_Material();
       init_Editor();
       init_ShaderProgram();
-      init_Vec3();
-      SceneObject = class {
+      SceneObject = class _SceneObject {
+        static lights = [];
         mesh;
         shaderProgram;
         material = new Material_default();
@@ -1689,6 +1719,12 @@
         }
         get Material() {
           return this.material;
+        }
+        get Mesh() {
+          return this.mesh;
+        }
+        set Mesh(mesh) {
+          this.mesh = mesh;
         }
         //abstract fixedUpdate():void;
         //abstract update():void;
@@ -1705,7 +1741,43 @@
             this.shaderProgram.setProjectionUniform_Mat4x4(Editor_default.Camera.getPerspectiveMatrix());
             this.shaderProgram.setViewUniform_Mat4x4(Editor_default.Camera.getViewInverseOfModelMatrix());
             this.shaderProgram.setViewPositionUniform_Mat4x4(Editor_default.Camera.transform.positon);
-            this.shaderProgram.setPhongLighting(this.material.Ambient, this.material.Diffuse, this.material.Specular, this.material.Shininess, new Vec3_default({ X: 0, Y: 0, Z: 1 }), Vec3_default.create(1, 1, 1));
+            this.shaderProgram.setPhongLighting(this.material.Ambient, this.material.Diffuse, this.material.Specular, this.material.Shininess);
+            let directionalLightsCount = 0;
+            const directional_light_dir_list = [];
+            const directional_light_color_list = [];
+            let pointLightsCount = 0;
+            const point_light_pos_list = [];
+            const point_light_color_list = [];
+            const point_light_coefficient_list = [];
+            let light;
+            let color;
+            for (let i = 0; i < _SceneObject.lights.length; i++) {
+              switch (_SceneObject.lights[i].type) {
+                case "DirectionalLightObject":
+                  light = _SceneObject.lights[i].light;
+                  let rotation = light.transform.rotation.normalized();
+                  color = light["Color"];
+                  directionalLightsCount++;
+                  directional_light_dir_list.push(rotation.X, rotation.Y, rotation.Z);
+                  directional_light_color_list.push(color.X, color.Y, color.Z);
+                  break;
+                case "PointLightObject":
+                  light = _SceneObject.lights[i].light;
+                  let position = light.transform.positon;
+                  color = light["Color"];
+                  pointLightsCount++;
+                  point_light_pos_list.push(position.X, position.Y, position.Z);
+                  point_light_color_list.push(color.X, color.Y, color.Z);
+                  point_light_coefficient_list.push(light["Light_Coefficient"]);
+                  break;
+              }
+            }
+            if (directionalLightsCount > 0) {
+              this.shaderProgram.setDirectionalLights(directional_light_dir_list, directional_light_color_list, directionalLightsCount);
+            }
+            if (pointLightsCount > 0) {
+              this.shaderProgram.setPointLights(point_light_pos_list, point_light_color_list, point_light_coefficient_list, pointLightsCount);
+            }
             this.mesh.drawMesh();
             this.mesh.unbind();
             this.material.unbind();
@@ -1949,6 +2021,9 @@
         degrees = 60;
         near = 0.025;
         far = 10;
+        constructor(shaderProgram, mesh) {
+          super(shaderProgram, mesh);
+        }
         /*
          * gets the perspective matrix of this current camera
         */
@@ -2078,6 +2153,64 @@
     }
   });
 
+  // src/engine/LightObject.ts
+  var LightObject, LightObject_default;
+  var init_LightObject = __esm({
+    "src/engine/LightObject.ts"() {
+      init_SceneObject();
+      init_Vec3();
+      LightObject = class extends SceneObject_default {
+        color = Vec3_default.create(1, 1, 1);
+        constructor(shaderProgram, mesh = null) {
+          super(shaderProgram, mesh);
+          SceneObject_default.lights.push({ light: this, type: this.constructor.name });
+        }
+        get Color() {
+          return this.color;
+        }
+        set Color(color) {
+          this.color = color;
+        }
+      };
+      LightObject_default = LightObject;
+    }
+  });
+
+  // src/engine/DirectionalLightObject.ts
+  var DirectionalLightObject, DirectionalLightObject_default;
+  var init_DirectionalLightObject = __esm({
+    "src/engine/DirectionalLightObject.ts"() {
+      init_LightObject();
+      DirectionalLightObject = class extends LightObject_default {
+        constructor(shaderProgram) {
+          super(shaderProgram);
+        }
+      };
+      DirectionalLightObject_default = DirectionalLightObject;
+    }
+  });
+
+  // src/engine/PointLightObject.ts
+  var PointLightObject, PointLightObject_default;
+  var init_PointLightObject = __esm({
+    "src/engine/PointLightObject.ts"() {
+      init_LightObject();
+      PointLightObject = class extends LightObject_default {
+        light_coefficient = 1.8;
+        constructor(shaderProgram) {
+          super(shaderProgram);
+        }
+        get Light_Coefficient() {
+          return this.light_coefficient;
+        }
+        set Light_Coefficient(new_coefficient) {
+          this.light_coefficient = new_coefficient;
+        }
+      };
+      PointLightObject_default = PointLightObject;
+    }
+  });
+
   // src/engine/Scene.ts
   var Scene, Scene_default;
   var init_Scene = __esm({
@@ -2088,6 +2221,8 @@
       init_Mesh();
       init_Texture();
       init_ShaderProgram();
+      init_DirectionalLightObject();
+      init_PointLightObject();
       Scene = class {
         _objects = [];
         constructor() {
@@ -2096,13 +2231,13 @@
           const cubeObj1 = new SceneObject_default(shaderD, Mesh_default.Meshes["cubeD"]);
           cubeObj1.Material.Texture = Texture_default.Textures["texture_map"];
           this._objects.push(cubeObj1);
-          cubeObj1.transform.positon = new Vec3_default({ X: 0, Y: 0, Z: -1 });
-          cubeObj1.transform.scale = new Vec3_default({ X: 0.5, Y: 0.5, Z: 0.5 });
+          cubeObj1.transform.positon = new Vec3_default({ X: 0, Y: 0, Z: -0.4 });
+          cubeObj1.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
           const cubeObj2 = new SceneObject_default(shaderD, Mesh_default.Meshes["sphere"]);
           cubeObj2.Material.Texture = Texture_default.Textures["metal_scale"];
           this._objects.push(cubeObj2);
-          cubeObj2.transform.positon = new Vec3_default({ X: 0, Y: 0, Z: 1 });
-          cubeObj2.transform.scale = new Vec3_default({ X: 0.5, Y: 0.5, Z: 0.5 });
+          cubeObj2.transform.positon = new Vec3_default({ X: 0, Y: 0, Z: 0.4 });
+          cubeObj2.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
           const cubeObj3 = new SceneObject_default(shaderC, Mesh_default.Meshes["cubeC"]);
           this._objects.push(cubeObj3);
           cubeObj3.transform.positon = new Vec3_default({ X: 0.4, Y: 0, Z: 0 });
@@ -2114,12 +2249,34 @@
           const cubeObj5 = new SceneObject_default(shaderC, Mesh_default.Meshes["loaded"]);
           this._objects.push(cubeObj5);
           cubeObj5.transform.positon = new Vec3_default({ X: 0, Y: 5, Z: 0 });
+          const dirLightObj1 = new DirectionalLightObject_default(shaderC);
+          dirLightObj1.transform.rotation = new Vec3_default({ X: 0, Y: -0.125, Z: 1 });
+          this._objects.push(dirLightObj1);
+          const pointLightObj1 = new PointLightObject_default(shaderC);
+          pointLightObj1.transform.positon = new Vec3_default({ X: 0, Y: -0.6, Z: 1.35 });
+          pointLightObj1.Color = Vec3_default.create(1, 0, 0);
+          pointLightObj1.Light_Coefficient = 1.8;
+          this._objects.push(pointLightObj1);
+          const pointLightObj2 = new PointLightObject_default(shaderC);
+          pointLightObj2.transform.positon = new Vec3_default({ X: 100, Y: 100, Z: 100 });
+          pointLightObj2.transform.scale = new Vec3_default({ X: 0.05, Y: 0.05, Z: 0.05 });
+          pointLightObj2.Color = Vec3_default.create(0, 1, 1);
+          pointLightObj2.Light_Coefficient = 1.8;
+          pointLightObj2.Mesh = Mesh_default.Meshes["sphereC"];
+          this._objects.push(pointLightObj2);
+          console.log(pointLightObj2.Mesh);
+          const cubeObj6 = new SceneObject_default(shaderD, Mesh_default.Meshes["sphere"]);
+          this._objects.push(cubeObj6);
+          cubeObj6.transform.positon = new Vec3_default({ X: 0, Y: 5, Z: 0 });
+          cubeObj6.transform.scale = new Vec3_default({ X: 0.15, Y: 0.15, Z: 0.15 });
         }
         rot_amt_xz = 0;
         rot_speed_xz = -0.125;
         fixedUpdate() {
           this.rot_amt_xz += this.rot_speed_xz * Time_default.fixedTime;
           this._objects[4].transform.rotation = new Vec3_default({ X: 0, Y: this.rot_amt_xz, Z: 0 });
+          const kettle = this._objects[8].transform.positon;
+          this._objects[7].transform.positon = Vec3_default.create(kettle.X, kettle.Y - 0.5, kettle.Z + Math.sin(this.rot_amt_xz * 10) * 0.25);
         }
         get objects() {
           return this._objects;
