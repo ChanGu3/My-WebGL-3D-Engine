@@ -4,9 +4,9 @@ import ShaderProgram from "./shaders/ShaderProgram";
 import Mat4, { UniqueMatrix } from "../linear-algebra/Mat4";
 import Transform from "../Transform";
 import Editor from "../Editor";
-import Camera from "../Camera";
+import CameraObject from "../CameraObject";
 import Vec4 from "../linear-algebra/Vec4";
-import Texture from "../Texture";
+import Texture from "./Texture";
 import Vec3 from "../linear-algebra/Vec3";
 import Vec2 from "../linear-algebra/Vec2";
 import vec3 from "../linear-algebra/Vec3";
@@ -34,7 +34,6 @@ class Mesh {
     private cullingFace:number = WebGL2RenderingContext.BACK;
     private isFaceCulling:boolean = true;
     private drawingMode:number = WebGL2RenderingContext.TRIANGLES;
-    private shaderProgram: ShaderProgram;
 
     /**
      * Creates a new mesh and loads it into video memory.
@@ -47,7 +46,6 @@ class Mesh {
 
         if(meshParams.windingOrder) { this.windingOrder = meshParams.windingOrder };
         if(meshParams.drawingMode) { this.drawingMode = meshParams.drawingMode; }
-        this.shaderProgram = meshParams.shaderProgram;
     }
 
     /**
@@ -76,6 +74,10 @@ class Mesh {
         }
 
         function facePusher(br:vectorUVPair, bl:vectorUVPair, tl:vectorUVPair, tr:vectorUVPair, isNormalForward:boolean):void {
+            //console.log(Vec3.normalVertex(br.pos, bl.pos, tr.pos).normalized().scaled((isNormalForward) ? 1 : -1));
+            //console.log(Vec3.normalVertex(bl.pos, tl.pos, br.pos).normalized().scaled((isNormalForward) ? 1 : -1));
+            //console.log(Vec3.normalVertex(tl.pos, tr.pos, bl.pos).normalized().scaled((isNormalForward) ? 1 : -1));
+            //console.log(Vec3.normalVertex(tr.pos, br.pos, tl.pos).normalized().scaled((isNormalForward) ? 1 : -1));
             vertexPusher(br.pos, rgba, br.uv, Vec3.normalVertex(br.pos, bl.pos, tr.pos).normalized().scaled((isNormalForward) ? 1 : -1));
             vertexPusher(bl.pos, rgba, bl.uv, Vec3.normalVertex(bl.pos, tl.pos, br.pos).normalized().scaled((isNormalForward) ? 1 : -1));
             vertexPusher(tl.pos, rgba, tl.uv, Vec3.normalVertex(tl.pos, tr.pos, bl.pos).normalized().scaled((isNormalForward) ? 1 : -1));
@@ -118,7 +120,7 @@ class Mesh {
             {pos:topBL, uv:Vec2.create(0.75, 0)},
             {pos:topTL, uv:Vec2.create(0.75, 0.25)},
             {pos:topTR, uv:Vec2.create(0.5, 0.25)},
-            windingOrder === WebGL2RenderingContext.CCW
+            windingOrder === WebGL2RenderingContext.CW
         );
 
         // BOTTOM VERTS
@@ -131,7 +133,7 @@ class Mesh {
             {pos:bottomBL, uv:Vec2.create(0.5, 0.75)},
             {pos:bottomTL, uv:Vec2.create(0.5, 0.5)},
             {pos:bottomTR, uv:Vec2.create(0.75, 0.5)},
-            windingOrder === WebGL2RenderingContext.CW
+            windingOrder === WebGL2RenderingContext.CCW
         );
 
         // LEFT VERTS
@@ -144,7 +146,7 @@ class Mesh {
             {pos:leftBL, uv:Vec2.create(0.25, 0.5)},
             {pos:leftTL, uv:Vec2.create(0.25, 0.25)},
             {pos:leftTR, uv:Vec2.create(0.5, 0.25)},
-            windingOrder === WebGL2RenderingContext.CCW
+            windingOrder === WebGL2RenderingContext.CW
         );
 
         // RIGHT VERTS
@@ -157,10 +159,8 @@ class Mesh {
             {pos:rightBL, uv:Vec2.create(0.75, 0.5)},
             {pos:rightTL, uv:Vec2.create(0.75, 0.25)},
             {pos:rightTR, uv:Vec2.create(1, 0.25)},
-            windingOrder === WebGL2RenderingContext.CW
+            windingOrder === WebGL2RenderingContext.CCW
         );
-
-        console.log(verts);
 
         let indis:number[] = [];
         if(windingOrder === WebGL2RenderingContext.CW) {
@@ -219,7 +219,7 @@ class Mesh {
                 if (isColor) { verts.push(rgba.X, rgba.Y, rgba.Z, rgba.Z); }
                 if (isUV) { verts.push(subdiv/subDivisions, layer/subDivisions); }
                 if (isNormal) {
-                    const normal:Vec3 = Vec3.create(x,y,z).normalized();
+                    const normal:Vec3 = (Vec3.create(x,y,z)).normalized();
                     verts.push(normal.X, normal.Y, normal.Z);
                 }
 
@@ -326,16 +326,26 @@ class Mesh {
     }
 
     /*
-    *  renders the mesh every frame.
+     * binds the mesh data to buffer
     */
-    public render (transform: Transform, texture:Texture):void {
-        this.shaderProgram.Load();
-        const prevVertBuffer = Buffer.bindArrayBuffer(this.verts);
-        const prevElemBuffer = Buffer.bindElementArrayBuffer(this.indis);
-        texture.bindTexture();
+    public bind ():void {
+        Buffer.bindArrayBuffer(this.verts);
+        Buffer.bindElementArrayBuffer(this.indis);
+    }
 
-        this.shaderProgram.setVertexAttributesToBuffer();
+    /*
+     * unbinds all bound mesh data
+    */
+    public unbind ():void {
+        Buffer.bindArrayBuffer(null);
+        Buffer.bindElementArrayBuffer(null);
+    }
 
+    /*
+     * Draws The Current Mesh
+     * !!!MUST HAVE THE MESH DATA BOUND!!!
+    */
+    public drawMesh() {
         if (this.isFaceCulling) {
             Engine3D.inst.GL.frontFace(this.windingOrder);
             Engine3D.inst.GL.cullFace(this.cullingFace);
@@ -345,24 +355,7 @@ class Mesh {
             Engine3D.inst.GL.disable(WebGL2RenderingContext.CULL_FACE);
         }
 
-        // TODO make perspective changeable in camera not here
-        this.shaderProgram.setProjectionUniform_Mat4x4(Camera.perspectiveUsingFrustum(0.225, Engine3D.inst.VIEWPORT.aspectRatio, 0.025, 10));
-
-        if(Editor.Camera !== undefined) {
-            //console.log(Scene.editorCamera.transform.getInverseModelMatrix());
-            this.shaderProgram.setViewUniform_Mat4x4(Editor.Camera.getViewInverseOfModelMatrix());
-        } else {
-            this.shaderProgram.setViewUniform_Mat4x4(Mat4.identity());
-        }
-
-        this.shaderProgram.setModelUniform_Mat4x4(transform.modelMatrix());
-
         Engine3D.inst.GL.drawElements(this.drawingMode, this.n_indis, WebGL2RenderingContext.UNSIGNED_SHORT, 0);
-
-        Buffer.bindArrayBuffer(prevVertBuffer);
-        Buffer.bindElementArrayBuffer(prevElemBuffer);
-        Texture.unBindTexture();
-        ShaderProgram.UnloadAny();
     }
 
     /*
@@ -393,16 +386,13 @@ class Mesh {
     }
 
     /*
-
     *  Sets the current meshes render winding order to clock wise
-
     public SetToWindingOrderCW():void {
         this.windingOrder = WebGL2RenderingContext.CW;
     }
 
 
     *  Sets the current meshes render winding order to counter clock wise
-
     public SetToWindingOrderCWW():void {
         this.windingOrder = WebGL2RenderingContext.CCW;
     }
@@ -413,7 +403,7 @@ class Mesh {
         this.AddToMeshes('loaded', await Mesh.get_obj_from_file("teapot.obj", ShaderProgram.ShaderPrograms['coordinates']));
         this.meshes['cubeC'] = Mesh.box(ShaderProgram.ShaderPrograms['coordinates'], 1, 1, 1);
         this.meshes['cubeD'] = Mesh.box(ShaderProgram.ShaderPrograms['default'], 1, 1, 1);
-        this.meshes['sphere'] = Mesh.sphereUV(shaderProgram.ShaderPrograms['default'], 100, 1);
+        this.meshes['sphere'] = Mesh.sphereUV(shaderProgram.ShaderPrograms['default'], 24, 1);
     }
 
     public static AddToMeshes(name:string, mesh:Mesh) {

@@ -7,40 +7,40 @@ import Keyboard from "./InputDevices/Keyboard";
 import Vec4 from "./linear-algebra/Vec4";
 import Mat4 from "./linear-algebra/Mat4";
 import Mesh from "./rendering/Mesh";
-import Texture from "./Texture";
+import Texture from "./rendering/Texture";
+import shaderProgram from "./rendering/shaders/ShaderProgram";
 
 class Scene {
     private _objects: SceneObject[] = [];
 
     public constructor() {
-        Keyboard.getKey("KeyA").addKeyDownListener({name:"print_key", doAction(key: Key) {
-                console.log(key.code);
-        }});
 
+        const shaderD = shaderProgram.ShaderPrograms['default']
+        const shaderC = shaderProgram.ShaderPrograms['coordinates']
         // cube
-        const cubeObj1 = new SceneObject(Mesh.Meshes['cubeD']);
-        cubeObj1.Texture = Texture.Textures['texture_map'];
+        const cubeObj1 = new SceneObject(shaderD,Mesh.Meshes['cubeD']);
+        cubeObj1.Material.Texture = Texture.Textures['texture_map'];
         this._objects.push(cubeObj1);
-        cubeObj1.transform.positon = new Vec3({X:0, Y:0, Z:0.4});
-        cubeObj1.transform.scale = new Vec3({X:0.15, Y:0.15, Z:0.15});
+        cubeObj1.transform.positon = new Vec3({X:0, Y:0, Z:-1});
+        cubeObj1.transform.scale = new Vec3({X:0.5, Y:0.5, Z:0.5});
 
-        const cubeObj2 = new SceneObject(Mesh.Meshes['sphere']);
-        cubeObj2.Texture = Texture.Textures['metal_scale'];
+        const cubeObj2 = new SceneObject(shaderD, Mesh.Meshes['sphere']);
+        cubeObj2.Material.Texture = Texture.Textures['metal_scale'];
         this._objects.push(cubeObj2);
-        cubeObj2.transform.positon = new Vec3({X:0, Y:0, Z:-0.4});
-        cubeObj2.transform.scale = new Vec3({X:0.15, Y:0.15, Z:0.15});
+        cubeObj2.transform.positon = new Vec3({X:0, Y:0, Z:1});
+        cubeObj2.transform.scale = new Vec3({X:0.5, Y:0.5, Z:0.5});
 
-        const cubeObj3 = new SceneObject(Mesh.Meshes['cubeC']);
+        const cubeObj3 = new SceneObject(shaderC, Mesh.Meshes['cubeC']);
         this._objects.push(cubeObj3);
         cubeObj3.transform.positon = new Vec3({X:0.4, Y:0, Z:0});
         cubeObj3.transform.scale = new Vec3({X:0.15, Y:0.15, Z:0.15});
 
-        const cubeObj4 = new SceneObject(Mesh.Meshes['cubeC']);
+        const cubeObj4 = new SceneObject(shaderC, Mesh.Meshes['cubeC']);
         this._objects.push(cubeObj4);
         cubeObj4.transform.positon = new Vec3({X:-0.4, Y:0, Z:0});
         cubeObj4.transform.scale = new Vec3({X:0.15, Y:0.15, Z:0.15});
 
-        const cubeObj5 = new SceneObject(Mesh.Meshes['loaded']);
+        const cubeObj5 = new SceneObject(shaderC, Mesh.Meshes['loaded']);
         this._objects.push(cubeObj5);
         cubeObj5.transform.positon = new Vec3({X:0, Y:5, Z:0});
     }

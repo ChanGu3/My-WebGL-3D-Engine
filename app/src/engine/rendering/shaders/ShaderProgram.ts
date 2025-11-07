@@ -7,6 +7,7 @@ import shader from "./Shader";
 import Mat4 from "../../linear-algebra/Mat4";
 import Viewport from "../Viewport";
 import Mesh from "../Mesh";
+import Vec3 from "../../linear-algebra/Vec3";
 
 type SHADERPROGRAMS = {
     [name:string]: ShaderProgram;
@@ -66,6 +67,7 @@ class ShaderProgram {
             }
 
             this._vertexShader.findThenAddExistingAttributes(this._program);
+            this._fragmentShader.findThenAddExistingAttributes(this._program);
 
             return;
         } catch (err) {
@@ -112,9 +114,38 @@ class ShaderProgram {
         Engine3D.inst.GL.uniformMatrix4fv( this.vertexShader.source_attribs['view'].location, true, mat4.getData());
     }
 
+    public setViewPositionUniform_Mat4x4(vec3: Vec3):void {
+        if(this.fragmentShader.source_attribs['view_pos'] !== undefined) {
+            Engine3D.inst.GL.uniform3f( this.fragmentShader.source_attribs['view_pos'].location, vec3.X, vec3.Y, vec3.Z );
+        }
+    }
+
     public setProjectionUniform_Mat4x4(mat4: mat4):void {
         Engine3D.inst.GL.uniformMatrix4fv( this.vertexShader.source_attribs['projection'].location, true, mat4.getData());
     }
+
+    public setPhongLighting(mat_ambient:number, mat_diffuse:number, mat_specular:number, mat_shininess:number, sun_dir:Vec3, sun_color:Vec3):void {
+        if(this.fragmentShader.source_attribs['mat_ambient'] != undefined) {
+            Engine3D.inst.GL.uniform1f( this.fragmentShader.source_attribs['mat_ambient'].location, mat_ambient );
+        }
+        if(this.fragmentShader.source_attribs['mat_shininess'] != undefined) {
+            Engine3D.inst.GL.uniform1f( this.fragmentShader.source_attribs['mat_shininess'].location, mat_shininess );
+        }
+        if(this.fragmentShader.source_attribs['mat_diffuse'] != undefined) {
+            Engine3D.inst.GL.uniform1f( this.fragmentShader.source_attribs['mat_diffuse'].location, mat_diffuse );
+        }
+        if(this.fragmentShader.source_attribs['mat_specular'] != undefined) {
+            Engine3D.inst.GL.uniform1f( this.fragmentShader.source_attribs['mat_specular'].location, mat_specular );
+        }
+        if(this.fragmentShader.source_attribs['sun_dir'] != undefined) {
+            Engine3D.inst.GL.uniform3f( this.fragmentShader.source_attribs['sun_dir'].location,  sun_dir.X, sun_dir.Y, sun_dir.Z);
+        }
+        if(this.fragmentShader.source_attribs['sun_color'] != undefined) {
+            Engine3D.inst.GL.uniform3f( this.fragmentShader.source_attribs['sun_color'].location, sun_color.X, sun_color.Y, sun_color.Z);
+        }
+    }
+
+
 
     public setVertexAttributesToBuffer():void {
         let interleavedLength:number = 0;
@@ -147,9 +178,9 @@ class ShaderProgram {
         }
 
         if(this._vertexShader.source_attribs['normal'] !== undefined) {
-            const uvLoc:number = this.vertexShader.source_attribs['normal'].location as number;
-            Engine3D.inst.GL.vertexAttribPointer(uvLoc, ShaderProgram.uv_count, WebGL2RenderingContext.FLOAT, false, interleavedLength*Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
-            Engine3D.inst.GL.enableVertexAttribArray(uvLoc);
+            const normalLoc:number = this.vertexShader.source_attribs['normal'].location as number;
+            Engine3D.inst.GL.vertexAttribPointer(normalLoc, ShaderProgram.normal_count, WebGL2RenderingContext.FLOAT, false, interleavedLength*Float32Array.BYTES_PER_ELEMENT, Float32Array.BYTES_PER_ELEMENT * currOffset);
+            Engine3D.inst.GL.enableVertexAttribArray(normalLoc);
             currOffset += ShaderProgram.normal_count;
         }
     }

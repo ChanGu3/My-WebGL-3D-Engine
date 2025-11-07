@@ -3,6 +3,9 @@ import Engine3D from "../../Engine3D";
 
 class VertexShader extends Shader {
 
+    /*
+     *  fileName: file name of the vertex shader
+    */
     constructor(fileName:string) {
         super(Engine3D.inst.GL.VERTEX_SHADER, fileName);
     }

@@ -6,13 +6,26 @@ import Keyboard from "./InputDevices/Keyboard";
 import Vec4 from "./linear-algebra/Vec4";
 import Time from "./Time";
 import Vec2, {Vec2_T} from "./linear-algebra/Vec2";
+import Engine3D from "./Engine3D";
 
-class Camera extends SceneObject{
+class CameraObject extends SceneObject{
+
+    private degrees: number = 60;
+    private readonly near: number = 0.025;
+    private readonly far: number = 10;
+
+    /*
+     * gets the perspective matrix of this current camera
+    */
+    public getPerspectiveMatrix():Mat4 {
+        const tau:number = Math.abs((this.degrees % 360)/360);
+        return CameraObject.perspectiveUsingFrustum(tau, Engine3D.inst.VIEWPORT.aspectRatio, this.near, this.far)
+    }
 
     /*
      *  returns the perspective projection matrix defined by a frustum
     */
-    public static frustum( left:number, right:number, bottom:number, top:number, near:number, far:number ):Mat4 {
+    private static frustum( left:number, right:number, bottom:number, top:number, near:number, far:number ):Mat4 {
         // these scalars will scale x,y values to the near plane
         let scale_x = 2 * near / ( right - left );
         let scale_y = 2 * near / ( top - bottom );
@@ -41,7 +54,7 @@ class Camera extends SceneObject{
     /*
     *  returns the perspective projection matrix defined by a perspective using the frustum matrix.
     */
-    public static perspectiveUsingFrustum( tau:number, aspectRatio:number, near:number, far:number, offset:Vec2|Vec2_T = new Vec2({X:0, Y:0}) ): Mat4 {
+    private static perspectiveUsingFrustum( tau:number, aspectRatio:number, near:number, far:number, offset:Vec2|Vec2_T = new Vec2({X:0, Y:0}) ): Mat4 {
         // Gets top of the field of view by using camera view distance to the near plane
         // multiplied by the tangent of the fov in tau converted into radians divided by 2
         // to remove only half the angle for the top leaving the other half for the bottom
@@ -57,7 +70,7 @@ class Camera extends SceneObject{
         const left = -right;
 
 
-        return  Camera.frustum(left - offset.X, right - offset.X, bottom - offset.Y, top - offset.Y, near, far);
+        return  CameraObject.frustum(left - offset.X, right - offset.X, bottom - offset.Y, top - offset.Y, near, far);
         //console.log(val.toString());
         //return val;
     }
@@ -67,16 +80,17 @@ class Camera extends SceneObject{
     */
     public getViewInverseOfModelMatrix():Mat4 {
         const scale:Vec3_T = {
-            X: (this.transform.scale.x === 0) ? 0 : 1/this.transform.scale.x,
-            Y: (this.transform.scale.y === 0) ? 0 : 1/this.transform.scale.y,
-            Z: (this.transform.scale.z === 0) ? 0 : 1/this.transform.scale.z
+            X: (this.transform.scale.X === 0) ? 0 : 1/this.transform.scale.X,
+            Y: (this.transform.scale.Y === 0) ? 0 : 1/this.transform.scale.Y,
+            Z: (this.transform.scale.Z === 0) ? 0 : 1/this.transform.scale.Z
         }
 
-        const translationMat = mat4.translation(-this.transform.positon.x, -this.transform.positon.y, -this.transform.positon.z);
-        const rotationMat = mat4.rotation_xy(-this.transform.rotation.z).multiply(mat4.rotation_yz(-this.transform.rotation.x).multiply(mat4.rotation_xz(-this.transform.rotation.y)));
-
+        const translationMat = mat4.translation(-this.transform.positon.X, -this.transform.positon.Y, -this.transform.positon.Z);
+        const rotationMat = mat4.rotation_xy(-this.transform.rotation.Z).multiply(mat4.rotation_yz(-this.transform.rotation.X).multiply(mat4.rotation_xz(-this.transform.rotation.Y)));
         const scaleMat = mat4.scale(scale.X, scale.Y, scale.Z);
-        return mat4.identity().multiply(scaleMat.multiply(rotationMat.multiply(translationMat)));
+
+        const value = mat4.identity().multiply(scaleMat.multiply(rotationMat.multiply(translationMat)));
+        return value;
     }
 
     private static normalSpeed:number = 0.125;
@@ -85,10 +99,9 @@ class Camera extends SceneObject{
     *  controls for noclipping mainly for the editor camera
     */
     public noClipControls():void {
-
-        Camera.spd = Camera.normalSpeed;
+        CameraObject.spd = CameraObject.normalSpeed;
         if(Keyboard.getKey("ShiftLeft").isPressing){
-            Camera.spd *= 2.5;
+            CameraObject.spd *= 3;
         }
 
         const camLocalDirectionZ: Vec4 = this.transform.localDirectionZ();
@@ -97,73 +110,67 @@ class Camera extends SceneObject{
         const camLocalDirectionX: Vec4 = this.transform.localDirectionX();
         const camPerpDirection:Vec3 = new Vec3({X:camLocalDirectionX.X, Y:camLocalDirectionX.Y, Z:camLocalDirectionX.Z});
 
+        // Position Changing
         let positionChange:Vec3 = new Vec3({X:0, Y:0, Z:0});
         if(Keyboard.getKey("KeyW").isPressing) {
-            positionChange = positionChange.add(camDirection.scaled(Camera.spd * Time.fixedTime));
+            positionChange = positionChange.add(camDirection.scaled(CameraObject.spd * Time.fixedTime));
         }
-
         if(Keyboard.getKey("KeyS").isPressing) {
-            positionChange = positionChange.add(camDirection.scaled(Camera.spd * Time.fixedTime).scaled(-1));
+            positionChange = positionChange.add(camDirection.scaled(CameraObject.spd * Time.fixedTime).scaled(-1));
         }
-
         if(Keyboard.getKey("KeyA").isPressing) {
-            positionChange = positionChange.add(camPerpDirection.scaled(Camera.spd * Time.fixedTime).scaled(-1));
+            positionChange = positionChange.add(camPerpDirection.scaled(CameraObject.spd * Time.fixedTime).scaled(-1));
         }
-
         if(Keyboard.getKey("KeyD").isPressing) {
-            positionChange = positionChange.add(camPerpDirection.scaled(Camera.spd * Time.fixedTime));
+            positionChange = positionChange.add(camPerpDirection.scaled(CameraObject.spd * Time.fixedTime));
         }
-
-        this.transform.positon = this.transform.positon.add(positionChange);
-
         // move down
         if(Keyboard.getKey("KeyC").isPressing) {
-            this.transform.positon.y -= Camera.spd * Time.fixedTime;
+            positionChange = positionChange.add(Vec3.create(0, CameraObject.spd * Time.fixedTime, 0)).scaled(-1);
         }
-
         // move up
         if(Keyboard.getKey("Space").isPressing) {
-            this.transform.positon.y += Camera.spd * Time.fixedTime;
+            positionChange = positionChange.add(Vec3.create(0, CameraObject.spd * Time.fixedTime, 0));
         }
+        this.transform.positon = this.transform.positon.add(positionChange);
 
+
+
+        let rotationChange:Vec3 = new Vec3({X:0, Y:0, Z:0});
         // roll left
         if(Keyboard.getKey("KeyQ").isPressing) {
-            this.transform.rotation.z -= Camera.spd * Time.fixedTime;
+            rotationChange = rotationChange.add(Vec3.create(0, 0, CameraObject.spd * Time.fixedTime).scaled(-1));
         }
-
         // roll right
         if(Keyboard.getKey("KeyE").isPressing) {
-            this.transform.rotation.z += Camera.spd * Time.fixedTime;
+            rotationChange = rotationChange.add(Vec3.create(0, 0, CameraObject.spd * Time.fixedTime));
         }
-
         // pitch up
         if(Keyboard.getKey("ArrowUp").isPressing) {
-            if(this.transform.rotation.x < 0.24) {
-                this.transform.rotation.x += Camera.spd * Time.fixedTime;
+            if(this.transform.rotation.X < 0.24) {
+                rotationChange = rotationChange.add(Vec3.create(CameraObject.spd * Time.fixedTime, 0, 0));
             } else {
-                this.transform.rotation.x = 0.24;
+                this.transform.rotation = Vec3.create(0.24, this.transform.rotation.Y, this.transform.rotation.Z);
             }
         }
-
         // pitch down
         if(Keyboard.getKey("ArrowDown").isPressing) {
-            if(this.transform.rotation.x > -0.24) {
-                this.transform.rotation.x -= Camera.spd * Time.fixedTime;
+            if(this.transform.rotation.X > -0.24) {
+                rotationChange = rotationChange.add(Vec3.create(CameraObject.spd * Time.fixedTime, 0, 0).scaled(-1));
             } else {
-                this.transform.rotation.x = -0.24;
+                this.transform.rotation = Vec3.create(-0.24, this.transform.rotation.Y, this.transform.rotation.Z);
             }
         }
-
         // yaw left
         if(Keyboard.getKey("ArrowLeft").isPressing) {
-            this.transform.rotation.y += Camera.spd * Time.fixedTime;
+            rotationChange = rotationChange.add(Vec3.create(0, CameraObject.spd * Time.fixedTime, 0));
         }
-
         // yaw right
         if(Keyboard.getKey("ArrowRight").isPressing) {
-            this.transform.rotation.y -= Camera.spd * Time.fixedTime;
+            rotationChange = rotationChange.add(Vec3.create(0, CameraObject.spd * Time.fixedTime, 0).scaled(-1));
         }
+        this.transform.rotation = this.transform.rotation.add(rotationChange);
     }
 }
 
-export default Camera;
+export default CameraObject;

@@ -1,4 +1,4 @@
-import Engine3D from "./Engine3D";
+import Engine3D from "../Engine3D";
 
 type TEXTURES = {
     [name:string]: Texture;
@@ -9,6 +9,10 @@ class Texture {
     private static textures: TEXTURES = {};
 
     private texture: WebGLTexture
+
+    constructor() {
+        this.texture = Texture.Textures['xor'];
+    }
 
     public static XOR_TEXTURE_DATA(width:number):Texture {
 
@@ -93,11 +97,11 @@ class Texture {
         return this.textures;
     }
 
-    public bindTexture():void {
+    public bind():void {
         Engine3D.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, this.texture );
     }
 
-    public static unBindTexture():void {
+    public static unbind():void {
         Engine3D.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, null );
     }
 }

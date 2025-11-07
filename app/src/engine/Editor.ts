@@ -1,10 +1,11 @@
-import Camera from "./Camera";
+import CameraObject from "./CameraObject";
 import Scene from "./Scene";
+import shaderProgram from "./rendering/shaders/ShaderProgram";
 
 class Editor {
     private static instance: Editor;
 
-    private static camera: Camera;
+    private static camera: CameraObject;
     private static scene: Scene;
 
     public constructor() {
@@ -12,7 +13,7 @@ class Editor {
             throw new TypeError("There Can Only Exist One Version Of An Editor");
         }
 
-        Editor.camera = new Camera();
+        Editor.camera = new CameraObject(shaderProgram.ShaderPrograms['coordinate']);
         Editor.scene = new Scene();
 
         Editor.instance = this;

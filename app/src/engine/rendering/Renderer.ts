@@ -2,7 +2,7 @@ import Engine3D from "../Engine3D";
 import ShaderProgram from "./shaders/ShaderProgram";
 import Mesh from "./Mesh";
 import Editor from "../Editor";
-import Texture from "../Texture";
+import Texture from "./Texture";
 
 
 

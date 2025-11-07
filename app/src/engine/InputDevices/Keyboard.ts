@@ -21,7 +21,6 @@ class Keyboard {
     */
     private static addKeyOnPress(event:KeyboardEvent):void {
         const code:string = event.code;
-        console.log(code);
         if(!Keyboard.keys[code]) {
             Keyboard.keys[code] = new Key(code,true);
         }

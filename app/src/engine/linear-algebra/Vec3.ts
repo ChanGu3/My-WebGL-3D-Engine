@@ -53,9 +53,9 @@ class Vec3 {
      **/
     public scaled( scalar: number ): Vec3 {
         const scaledVec4: Vec3_T = {
-            X:this.x * scalar,
-            Y:this.y * scalar,
-            Z:this.z * scalar,
+            X:(this.x === 0) ? 0 : this.x * scalar,
+            Y:(this.y === 0) ? 0 : this.y * scalar,
+            Z:(this.z === 0) ? 0 : this.z * scalar,
         };
         return new Vec3(scaledVec4);
     }

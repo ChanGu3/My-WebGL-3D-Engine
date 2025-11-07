@@ -67,6 +67,7 @@ abstract class Shader {
      * gets uniform attribute location otherwise returns null if it does not exist, or atr name is reserved for built in
     */
     protected CheckUniformAttribute(shaderProgram:WebGLProgram, atr:string):WebGLUniformLocation|null {
+
         const uniformAttribLoc:WebGLUniformLocation = Engine3D.inst.GL.getUniformLocation(shaderProgram, atr);
 
         let err = Engine3D.inst.GL.getError()
