@@ -68,10 +68,11 @@ class Mesh {
         }
 
         function facePusher(br:vectorUVPair, bl:vectorUVPair, tl:vectorUVPair, tr:vectorUVPair, isNormalForward:boolean):void {
-            vertexPusher(br.pos, rgba, br.uv, Vec3.normalVertex(br.pos, bl.pos, tr.pos).normalized().scaled((isNormalForward) ? 1 : -1));
-            vertexPusher(bl.pos, rgba, bl.uv, Vec3.normalVertex(bl.pos, tl.pos, br.pos).normalized().scaled((isNormalForward) ? 1 : -1));
-            vertexPusher(tl.pos, rgba, tl.uv, Vec3.normalVertex(tl.pos, tr.pos, bl.pos).normalized().scaled((isNormalForward) ? 1 : -1));
-            vertexPusher(tr.pos, rgba, tr.uv, Vec3.normalVertex(tr.pos, br.pos, tl.pos).normalized().scaled((isNormalForward) ? 1 : -1));
+            // setting to const for uv to do the same for each face
+            vertexPusher(br.pos, rgba, Vec2.create(1,1), Vec3.normalVertex(br.pos, bl.pos, tr.pos).normalized().scaled((isNormalForward) ? 1 : -1));
+            vertexPusher(bl.pos, rgba, Vec2.create(0,1), Vec3.normalVertex(bl.pos, tl.pos, br.pos).normalized().scaled((isNormalForward) ? 1 : -1));
+            vertexPusher(tl.pos, rgba, Vec2.create(0,0), Vec3.normalVertex(tl.pos, tr.pos, bl.pos).normalized().scaled((isNormalForward) ? 1 : -1));
+            vertexPusher(tr.pos, rgba, Vec2.create(1,0), Vec3.normalVertex(tr.pos, br.pos, tl.pos).normalized().scaled((isNormalForward) ? 1 : -1));
         }
 
         // FRONT VERTS
@@ -283,7 +284,7 @@ class Mesh {
      * Asynchronously load the obj file as a mesh.
      *  @deprecated Use `get_obj_from_file()` instead.
      */
-    static from_obj_file(file_name:string, shaderProgram: ShaderProgram, f ) {
+    public static from_obj_file(file_name:string, shaderProgram: ShaderProgram, f ) {
         let request:XMLHttpRequest = new XMLHttpRequest();
 
         // the function that will be called when the file is being loaded

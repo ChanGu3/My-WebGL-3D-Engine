@@ -1,4 +1,4 @@
-import Engine3D from "../Engine3D";
+import Engine3D from "./Engine3D";
 
 class Viewport {
     private canvas: HTMLCanvasElement;

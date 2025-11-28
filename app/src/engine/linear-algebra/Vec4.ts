@@ -1,3 +1,5 @@
+import Vec3 from "./Vec3";
+
 export type Vec4_T = {
     X: number,
     Y: number,
@@ -44,6 +46,10 @@ class Vec4 {
      */
     public get magnitude(): number {
         return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z + this.w * this.w);
+    }
+
+    public Vec3(): Vec3 {
+        return Vec3.create(this.x, this.y, this.z);
     }
 
     /**

@@ -1,75 +1,189 @@
 import Engine3D from "../Engine3D";
+import Debug from "../Debug"
+import Render3D from "./jobs/Render3D";
+import Light3D from "./jobs/Lights/Light3D";
+import DirectionalLight3D from "./jobs/Lights/DirectionalLight3D";
+import PointLight3D from "./jobs/Lights/PointLight3D";
 import ShaderProgram from "./shaders/ShaderProgram";
-import Mesh from "./Mesh";
+import SceneGraph from "../Scene/SceneGraph";
+import Camera from "../Scene/Components/Cameras/Camera";
 import Editor from "../Editor";
-import Texture from "./Texture";
-
+import Mat4 from "../linear-algebra/Mat4";
 
 
 //
 // Render that expects Interleaved Vectors for rendering
 //
 class Renderer {
-    private static instance: Renderer;
+    public static inst: Renderer;
 
-    private static updateTimeEvent:Event = new Event("updateTimeEvent");
+    public static StartNewFrameEvent:Event = new Event("StartNewFrameEvent");
 
-    // @ts-ignore
-    public static async Instantiate(): Promise<Renderer> {
-        if(Renderer.instance != null) {
-            throw new Error("Can Only Create One Renderer");
-        }
-        Renderer.instance = new Renderer();
+    public static Camera: Camera = Editor.Camera;
+    public static render3DJobs: Render3D[] = [];
+    public static light3DJobs: Light3D[] = [];
 
-        Renderer.instance.initializeClearPresets();
-        Renderer.instance.initializePresets();
-        Renderer.instance.clear();
+    public constructor() {
+        if(Renderer.inst != null) { throw new Error(`cannot create more than one renderer per Engine3D ${Engine3D.NAME}`); return; }
 
-        await ShaderProgram.LoadShaderPrograms();
-        await Mesh.LoadMeshes();
-        await Texture.LoadTextures();
-
-        return Renderer.instance;
+        Renderer.inst = this;
+        Renderer.initializeClearPresets();
+        Renderer.initializePresets();
+        Renderer.clear();
     }
+
 
     /*
      * initializes clearing state
     */
-    private initializeClearPresets():void {
-        Engine3D.inst.GL.clearColor( 0, 0.85, 1.0, 1 );
+    private static initializeClearPresets():void {
+        Engine3D.inst.GL.clearColor( 0.05, 0.08, 0.15, 1 );
         Engine3D.inst.GL.clearDepth(1.0); // 1.0 depth is farthest
     }
 
     /*
      * clears the screen
     */
-    private clear():void {
+    private static clear():void {
         /* clearing canvas */
         Engine3D.inst.GL.clear( WebGL2RenderingContext.COLOR_BUFFER_BIT | WebGL2RenderingContext.DEPTH_BUFFER_BIT );
     }
 
     //
     // Initializes clearing values for gl renderer
-    private initializePresets():void {
-        Engine3D.inst.GL.enable(WebGL2RenderingContext.DEPTH_TEST); // tests for z value otherwise last drawn is put into
+    private static initializePresets():void {
+        Engine3D.inst.GL.enable(WebGL2RenderingContext.DEPTH_TEST); // tests for z value otherwise last drawn is placed on top of screen
+        Engine3D.inst.GL.enable(WebGL2RenderingContext.BLEND);
+        Engine3D.inst.GL.blendFunc(WebGL2RenderingContext.SRC_ALPHA, WebGL2RenderingContext.ONE_MINUS_SRC_ALPHA);
     }
 
     /*
-    *  renders all the vertices in the scene
+    *  renders everything for the scene
     */
-    public render():void {
-        document.dispatchEvent(Renderer.updateTimeEvent);
+    public static render():void {
+        document.dispatchEvent(Renderer.StartNewFrameEvent);
         const aniFrameID:number = window.requestAnimationFrame(this.render.bind(this));
-        //Engine3D.inst.VIEWPORT.SetResolution(700 * Math.sin(Time.timeElapsed / 1000 * 0.5) ** 2 + 200, 400 * Math.cos(Time.timeElapsed / 1000 * 0.5) ** 2 + 200);
-        this.clear();
+        Renderer.clear();
         try {
-            for (const sceneObject of Editor.Scene.objects) {
-                //sceneObject.update();
-                sceneObject.render();
-            }
-        } catch (e) {
-            console.error(e);
+            Renderer.SetCamera();
+            if(SceneGraph.Current) { SceneGraph.Current.generateJobs(); }
+            Renderer.SetLighting();
+            Renderer.Render3DSceneGraph();
+        } catch (error:any) {
+            Debug.LogError("Something went wrong while rendering", Renderer.name, error.message);
             window.cancelAnimationFrame(aniFrameID);
+        } finally {
+            Renderer.ClearJobs();
+        }
+    }
+
+    private static GetDistanceToCamera(matrix: Mat4) {
+        return Renderer.Camera.SceneObject.WorldPosition.sub(matrix.vectorBasisW().Vec3()).magnitude;
+    }
+
+    public static AddRenderJob(render3D: Render3D) {       
+
+        const renderMag = Renderer.GetDistanceToCamera(render3D.Matrix);  
+        let startIndex = 0;
+        let endIndex = Renderer.render3DJobs.length;;
+
+        while(startIndex < endIndex)
+        { 
+            const mid = (startIndex + endIndex) >>> 1;
+            const listMag = Renderer.GetDistanceToCamera(Renderer.render3DJobs[mid].Matrix); 
+
+            if(renderMag === listMag) { Renderer.render3DJobs.splice(mid+1, 0, render3D); return; }
+
+            if(renderMag < listMag) {
+                startIndex = mid + 1;
+            }
+            else {
+                endIndex = mid; 
+            }
+        }
+
+        Renderer.render3DJobs.splice(startIndex, 0, render3D); return;
+    }
+
+    private static ClearJobs(){
+        this.light3DJobs = []
+        this.render3DJobs = []
+    }
+
+    private static Render3DSceneGraph() {
+        for (const render3D of Renderer.render3DJobs) {
+            render3D.render();
+        }
+        this.render3DJobs = [];
+    }
+
+    private static directionalLightsCount: number = 0;
+    private static directional_light_dir_list:number[] = [];
+    private static directional_light_color_list:number[] = [];
+
+    private static pointLightsCount:number = 0;
+    private static point_light_pos_list:number[] = [];
+    private static point_light_color_list:number[] = [];
+    private static point_light_coefficient_list:number[] = [];
+
+    private static loggedCamera = false;
+    private static SetCamera() {
+        if(!Editor.IsEditorCamera) 
+        { 
+            if(SceneGraph.Current && SceneGraph.Current.Camera) 
+            {
+                Renderer.loggedCamera = false;
+                Renderer.Camera = SceneGraph.Current.Camera; 
+            } 
+            else if (!Renderer.loggedCamera)
+            {
+                Renderer.loggedCamera = true;
+                Debug.LogWarning("Attempted switching to scene graph camera but it does not exist", "Renderer", "possibly the camera in the scene graph is null")
+            }
+            return; 
+        }
+        Renderer.Camera = Editor.Camera;
+    }
+
+    // Lights are hardcoded to use the default program.
+    private static SetLighting() {
+        Renderer.directionalLightsCount = 0;
+        Renderer.directional_light_dir_list = [];
+        Renderer.directional_light_color_list = [];
+
+        Renderer.pointLightsCount = 0;
+        Renderer.point_light_pos_list = [];
+        Renderer.point_light_color_list = [];
+        Renderer.point_light_coefficient_list = [];
+
+        this.light3DJobs.forEach((light) => {
+            if(light instanceof DirectionalLight3D){
+                Renderer.directional_light_dir_list.push(light.Direction.X, light.Direction.Y, light.Direction.Z);
+                Renderer.directional_light_color_list.push(light.Color.X, light.Color.Y, light.Color.Z);
+                Renderer.directionalLightsCount++;
+            } 
+            else if(light instanceof PointLight3D) {
+                Renderer.point_light_pos_list.push(light.Position.X, light.Position.Y, light.Position.Z);
+                Renderer.point_light_color_list.push(light.Color.X, light.Color.Y, light.Color.Z);
+                Renderer.point_light_coefficient_list.push(light.LightCoefficient);
+                Renderer.pointLightsCount++;
+            }
+        });
+
+        if(16 < Renderer.directionalLightsCount) { throw new Error("can only have 16 directional lights in one scene"); }
+
+        if(16 < Renderer.pointLightsCount) { throw new Error("can only have 16 point lights in one scene"); }
+
+        if((Renderer.pointLightsCount + Renderer.directionalLightsCount) > 16) { Debug.LogWarning("Having too many lights can slow performance", "Renderer", "More than 16 lights in scene"); } 
+    }
+
+    public static ApplyLightingToRender() {
+        if(0 < Renderer.directionalLightsCount) {
+            ShaderProgram.ShaderPrograms['default'].setDirectionalLights(Renderer.directional_light_dir_list, Renderer.directional_light_color_list, Renderer.directionalLightsCount);
+        }
+
+        if(0 < Renderer.pointLightsCount) {
+            ShaderProgram.ShaderPrograms['default'].setPointLights(Renderer.point_light_pos_list, Renderer.point_light_color_list, Renderer.point_light_coefficient_list, Renderer.pointLightsCount);
         }
     }
 }

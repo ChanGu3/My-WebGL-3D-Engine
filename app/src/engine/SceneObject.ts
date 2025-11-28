@@ -1,5 +1,5 @@
 import Mesh from "./rendering/Mesh";
-import Transform from "./Transform";
+import Transform from "./Scene/Transform";
 import Material from "./rendering/Material";
 import Editor from "./Editor";
 import ShaderProgram from "./rendering/shaders/ShaderProgram";

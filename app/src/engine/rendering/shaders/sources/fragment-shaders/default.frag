@@ -21,6 +21,7 @@ uniform float mat_ambient;
 uniform float mat_diffuse;
 uniform float mat_specular;
 uniform float mat_shininess;
+uniform float mat_alpha;
 uniform sampler2D tex_0;
 
 // Fragment Data
@@ -108,13 +109,19 @@ vec3 total_point_diffuse_specular_color(vec3 point_light_pos[MAX_POINT_LIGHTS], 
     return accum_color;
 }
 
+// might need to fix it in here for whenever there doesn't exists a uniform or out to use a default!
 void main( void )
 {
     vec4 tex_color = texture( tex_0, v_uv );
+    if( tex_color.a == 0.0 ) {
+        discard;
+    }
+
     vec4 ambient = vec4(mat_ambient, mat_ambient, mat_ambient, 1);
 
     vec4 total_directional_diffuse = vec4(total_directional_diffuse_color(directional_light_dir, directional_light_color, directional_light_count, v_normal, mat_diffuse), 1.0);
     vec4 total_directional_specular = vec4(total_directional_specular_color(directional_light_dir, directional_light_color, directional_light_count, v_normal, mat_specular, mat_shininess, view_pos, v_frag_pos), 1.0);
-    vec4 total_point_color = vec4(total_point_diffuse_specular_color(point_light_pos, point_light_color, point_light_coefficient, point_light_count, view_pos, v_frag_pos, v_normal, mat_diffuse, mat_specular, mat_shininess), 1);
+    vec4 total_point_color = vec4(total_point_diffuse_specular_color(point_light_pos, point_light_color, point_light_coefficient, point_light_count, view_pos, v_frag_pos, v_normal, mat_diffuse, mat_specular, mat_shininess), 1.0);
     f_color = tex_color * (ambient + total_directional_diffuse + total_directional_specular + total_point_color);
+    f_color.a = f_color.a * mat_alpha;
 }

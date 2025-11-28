@@ -5,15 +5,12 @@ import Mesh from "./rendering/Mesh";
 import Texture from "./rendering/Texture";
 import shaderProgram from "./rendering/shaders/ShaderProgram";
 import DirectionalLightObject from "./DirectionalLightObject";
-import LightObject from "./LightObject";
 import PointLightObject from "./PointLightObject";
-import pointLightObject from "./PointLightObject";
 
 class Scene {
     private _objects: SceneObject[] = [];
 
     public constructor() {
-
         const shaderD = shaderProgram.ShaderPrograms['default']
         const shaderC = shaderProgram.ShaderPrograms['coordinates']
         // cube
@@ -76,7 +73,7 @@ class Scene {
     private rot_amt_xz:number = 0.0;
     private readonly rot_speed_xz:number = -0.125;
     public fixedUpdate():void {
-        this.rot_amt_xz += this.rot_speed_xz * Time.fixedTime;
+        this.rot_amt_xz += this.rot_speed_xz * Time.FixedTime;
         this._objects[4].transform.rotation = new Vec3({X:0, Y:this.rot_amt_xz, Z:0});
 
         const kettle = this._objects[8].transform.positon;

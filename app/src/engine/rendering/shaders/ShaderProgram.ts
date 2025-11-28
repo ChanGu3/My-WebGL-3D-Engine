@@ -67,7 +67,7 @@ class ShaderProgram {
             this._fragmentShader.findThenAddExistingAttributes(this._program);
 
             return;
-        } catch (err) {
+        } catch (err:any) {
             throw new Error( err );
         }
     }
@@ -133,6 +133,13 @@ class ShaderProgram {
         }
         if(this.fragmentShader.source_attribs['mat_specular'] != undefined) {
             Engine3D.inst.GL.uniform1f( this.fragmentShader.source_attribs['mat_specular'].location, mat_specular );
+        }
+    }
+
+    public setAlpha(mat_alpha:number):void {
+        mat_alpha = (mat_alpha > 1) ? 1 : mat_alpha
+        if(this.fragmentShader.source_attribs['mat_alpha'] != undefined) {
+            Engine3D.inst.GL.uniform1f( this.fragmentShader.source_attribs['mat_alpha'].location, mat_alpha );
         }
     }
 

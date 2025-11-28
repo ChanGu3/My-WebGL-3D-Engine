@@ -1,28 +1,27 @@
 class Time {
-    private static _inst:Time;
+    public static OnDeltaUpdate:Event = new Event("Update");
+    public static OnFixedUpdate:Event = new Event("FixedUpdate");
 
-    public static readonly TICK_RATE: number = 60;
-    public static readonly MILI_SEC_PER_TICK: number = 1000 / this.TICK_RATE;
+    private static readonly TICK_RATE: number = 60;
+    private static readonly MILI_SEC_PER_TICK: number = 1000 / this.TICK_RATE;
+    private static readonly FIXED_TIME = Time.MILI_SEC_PER_TICK / 1000;
 
     private static lastFrameUpTime: number = 0.0;
-    private static _deltaTime: number = 0.0; // delta time in seconds
+    private static deltaTime: number =  0.0;
 
-
-
-    constructor() {
-        if(Time._inst == null) {
-            new Error("Can only have one instance of Time");
-        }
-
-        Time._inst = this;
-        document.addEventListener("updateTimeEvent", Time.update);
+    static {
+        document.addEventListener("StartNewFrameEvent", Time.deltaUpdate); // must send "on event" to this event per frame somewhere else
+        setInterval(Time.fixedUpdate.bind(Time), Time.MILI_SEC_PER_TICK);
     }
 
-    private static update():void {
-        if(Time.lastFrameUpTime !== 0.0){
-            Time._deltaTime = Time.MiliToSec(window.performance.now() - Time.lastFrameUpTime);
-        }
+    private static deltaUpdate():void {
+        if(Time.lastFrameUpTime !== 0.0) { Time.deltaTime = Time.MiliToSec(window.performance.now() - Time.lastFrameUpTime); }
         Time.lastFrameUpTime = window.performance.now();
+        document.dispatchEvent(Time.OnDeltaUpdate);
+    }
+
+    private static fixedUpdate():void {
+        document.dispatchEvent(Time.OnFixedUpdate);
     }
 
     // Convert Milliseconds into Seconds
@@ -30,16 +29,16 @@ class Time {
         return milliseconds/1000;
     }
 
-    public static get deltaTime():number {
-        return this._deltaTime;
+    public static get DeltaTime():number {
+        return Time.deltaTime
     }
 
-    public static get timeElapsed():number {
+    public static get TimeElapsed():number {
         return window.performance.now();
     }
 
-    public static get fixedTime():number {
-        return Time.MILI_SEC_PER_TICK / 1000;
+    public static get FixedTime():number {
+        return Time.FIXED_TIME;
     }
 }
 

@@ -3,16 +3,9 @@ import Key from "./Key";
 type KEYS = {[code: string] : Key}
 
 class Keyboard {
-    private static _inst:Keyboard;
-
     private static keys: KEYS = {};
 
-    constructor() {
-        if(Keyboard._inst === null) {
-            new Error("Can only have one instance of Keyboard");
-        }
-        Keyboard._inst = this;
-
+    static {
         document.addEventListener("keydown", Keyboard.addKeyOnPress);
     }
 

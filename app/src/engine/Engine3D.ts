@@ -1,44 +1,39 @@
-import  Renderer from "./rendering/Renderer";
-import Viewport from "./rendering/Viewport";
-import Keyboard from "./InputDevices/Keyboard";
-import Time from "./Time";
+import Renderer from "./rendering/Renderer";
+import Viewport from "./Viewport";
+import ShaderProgram from "./rendering/shaders/ShaderProgram";
+import Mesh from "./rendering/Mesh";
+import Texture from "./rendering/Texture";
 import Editor from "./Editor";
+import TestScene from "../mydata/TestScene";
 
 class Engine3D {
+
+    public static readonly NAME = "CVE Engine";
+
     private static instance:Engine3D;
 
     private gl: WebGL2RenderingContext;
-    private renderer: Renderer;
-    private viewport: Viewport;
-    private editor: Editor;
+    private viewport?: Viewport = undefined;
+    private renderer?: Renderer = undefined;
+
+    public static async run(canvasID:string = 'canvas'): Promise<void> {
+        if(Engine3D.instance != null && Engine3D.instance !== undefined) { throw new Error(`Cannot run two instances of the 3DEngine ${Engine3D.NAME}`); }
+
+        const canvas: HTMLCanvasElement = (document.getElementById(canvasID) as HTMLCanvasElement);
+        Engine3D.instance = new Engine3D(canvas);
+        Engine3D.instance.renderer = new Renderer();
+        Engine3D.instance.viewport = new Viewport(canvas, 500, 500);
+        
+        await ShaderProgram.LoadShaderPrograms();
+        await Mesh.LoadMeshes();
+        await Texture.LoadTextures();
+
+        Editor.LoadSceneGraph(TestScene);
+        Renderer.render();
+    } 
 
     constructor(canvas: HTMLCanvasElement) {
-        if(Engine3D.instance !== null && Engine3D.instance !== undefined) {
-            throw new Error("Cannot Have Two instances of Engine3D");
-        } else {
-            Engine3D.instance = this;
-        }
-        new Time();
-        new Keyboard();
-
         this.gl = (canvas.getContext('webgl2') as WebGL2RenderingContext);
-        this.viewport = new Viewport(canvas, 800, 450);
-
-        Renderer.Instantiate().then((renderer:Renderer) => {
-            this.renderer = renderer;
-            this.editor = new Editor();
-            setInterval(this.fixedUpdate.bind(this), Time.MILI_SEC_PER_TICK);
-            this.renderer.render();
-        })
-    }
-
-    private fixedUpdate():void {
-        Editor.fixedUpdate();
-        /*
-        for (const sceneObject of this.scene.objects) {
-            sceneObject.fixedUpdate();
-        }
-        */
     }
 
     //
@@ -59,11 +54,11 @@ class Engine3D {
     }
 
     public get VIEWPORT(): Viewport {
-        return this.viewport;
+        return this.viewport as Viewport;
     }
 
-    public get RENDERER(): Renderer {
-        return this.renderer;
+        public get RENDERER(): Renderer {
+        return this.viewport as Renderer;
     }
 }
 

@@ -16,8 +16,8 @@ class CameraObject extends SceneObject{
     private readonly near: number = 0.025;
     private readonly far: number = 10;
 
-    constructor(shaderProgram: ShaderProgram, mesh: Mesh) {
-        super(shaderProgram, mesh);
+    constructor(shaderProgram: ShaderProgram) {
+        super(shaderProgram, null);
     }
 
     /*
@@ -91,7 +91,7 @@ class CameraObject extends SceneObject{
             Z: (this.transform.scale.Z === 0) ? 0 : 1/this.transform.scale.Z
         }
 
-        const translationMat = mat4.translation(-this.transform.positon.X, -this.transform.positon.Y, -this.transform.positon.Z);
+        const translationMat = mat4.translation(-this.transform.position.X, -this.transform.position.Y, -this.transform.position.Z);
         const rotationMat = mat4.rotation_xy(-this.transform.rotation.Z).multiply(mat4.rotation_yz(-this.transform.rotation.X).multiply(mat4.rotation_xz(-this.transform.rotation.Y)));
         const scaleMat = mat4.scale(scale.X, scale.Y, scale.Z);
 
@@ -119,42 +119,42 @@ class CameraObject extends SceneObject{
         // Position Changing
         let positionChange:Vec3 = new Vec3({X:0, Y:0, Z:0});
         if(Keyboard.getKey("KeyW").isPressing) {
-            positionChange = positionChange.add(camDirection.scaled(CameraObject.spd * Time.fixedTime));
+            positionChange = positionChange.add(camDirection.scaled(CameraObject.spd * Time.FixedTime));
         }
         if(Keyboard.getKey("KeyS").isPressing) {
-            positionChange = positionChange.add(camDirection.scaled(CameraObject.spd * Time.fixedTime).scaled(-1));
+            positionChange = positionChange.add(camDirection.scaled(CameraObject.spd * Time.FixedTime).scaled(-1));
         }
         if(Keyboard.getKey("KeyA").isPressing) {
-            positionChange = positionChange.add(camPerpDirection.scaled(CameraObject.spd * Time.fixedTime).scaled(-1));
+            positionChange = positionChange.add(camPerpDirection.scaled(CameraObject.spd * Time.FixedTime).scaled(-1));
         }
         if(Keyboard.getKey("KeyD").isPressing) {
-            positionChange = positionChange.add(camPerpDirection.scaled(CameraObject.spd * Time.fixedTime));
+            positionChange = positionChange.add(camPerpDirection.scaled(CameraObject.spd * Time.FixedTime));
         }
         // move down
         if(Keyboard.getKey("KeyC").isPressing) {
-            positionChange = positionChange.add(Vec3.create(0, CameraObject.spd * Time.fixedTime, 0)).scaled(-1);
+            positionChange = positionChange.add(Vec3.create(0, CameraObject.spd * Time.FixedTime, 0)).scaled(-1);
         }
         // move up
         if(Keyboard.getKey("Space").isPressing) {
-            positionChange = positionChange.add(Vec3.create(0, CameraObject.spd * Time.fixedTime, 0));
+            positionChange = positionChange.add(Vec3.create(0, CameraObject.spd * Time.FixedTime, 0));
         }
-        this.transform.positon = this.transform.positon.add(positionChange);
+        this.transform.position = this.transform.position.add(positionChange);
 
 
 
         let rotationChange:Vec3 = new Vec3({X:0, Y:0, Z:0});
         // roll left
         if(Keyboard.getKey("KeyQ").isPressing) {
-            rotationChange = rotationChange.add(Vec3.create(0, 0, CameraObject.spd * Time.fixedTime).scaled(-1));
+            rotationChange = rotationChange.add(Vec3.create(0, 0, CameraObject.spd * Time.FixedTime).scaled(-1));
         }
         // roll right
         if(Keyboard.getKey("KeyE").isPressing) {
-            rotationChange = rotationChange.add(Vec3.create(0, 0, CameraObject.spd * Time.fixedTime));
+            rotationChange = rotationChange.add(Vec3.create(0, 0, CameraObject.spd * Time.FixedTime));
         }
         // pitch up
         if(Keyboard.getKey("ArrowUp").isPressing) {
             if(this.transform.rotation.X < 0.24) {
-                rotationChange = rotationChange.add(Vec3.create(CameraObject.spd * Time.fixedTime, 0, 0));
+                rotationChange = rotationChange.add(Vec3.create(CameraObject.spd * Time.FixedTime, 0, 0));
             } else {
                 this.transform.rotation = Vec3.create(0.24, this.transform.rotation.Y, this.transform.rotation.Z);
             }
@@ -162,18 +162,18 @@ class CameraObject extends SceneObject{
         // pitch down
         if(Keyboard.getKey("ArrowDown").isPressing) {
             if(this.transform.rotation.X > -0.24) {
-                rotationChange = rotationChange.add(Vec3.create(CameraObject.spd * Time.fixedTime, 0, 0).scaled(-1));
+                rotationChange = rotationChange.add(Vec3.create(CameraObject.spd * Time.FixedTime, 0, 0).scaled(-1));
             } else {
                 this.transform.rotation = Vec3.create(-0.24, this.transform.rotation.Y, this.transform.rotation.Z);
             }
         }
         // yaw left
         if(Keyboard.getKey("ArrowLeft").isPressing) {
-            rotationChange = rotationChange.add(Vec3.create(0, CameraObject.spd * Time.fixedTime, 0));
+            rotationChange = rotationChange.add(Vec3.create(0, CameraObject.spd * Time.FixedTime, 0));
         }
         // yaw right
         if(Keyboard.getKey("ArrowRight").isPressing) {
-            rotationChange = rotationChange.add(Vec3.create(0, CameraObject.spd * Time.fixedTime, 0).scaled(-1));
+            rotationChange = rotationChange.add(Vec3.create(0, CameraObject.spd * Time.FixedTime, 0).scaled(-1));
         }
         this.transform.rotation = this.transform.rotation.add(rotationChange);
     }

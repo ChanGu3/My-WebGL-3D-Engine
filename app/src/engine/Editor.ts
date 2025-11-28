@@ -1,36 +1,67 @@
 import CameraObject from "./CameraObject";
-import Scene from "./Scene";
-import shaderProgram from "./rendering/shaders/ShaderProgram";
+import Debug from "./Debug";
+import Keyboard from "./InputDevices/Keyboard";
+import Camera from "./Scene/Components/Cameras/Camera";
+import EditorCamera from "./Scene/Components/Cameras/EditorCamera";
+import SceneGraph from "./Scene/SceneGraph";
+import SceneObject from "./Scene/SceneObject"
 
+/*
+ * im going to use the editor as the area for updating
+*/
 class Editor {
-    private static instance: Editor;
 
-    private static camera: CameraObject;
-    private static scene: Scene;
+    private static CameraObject: SceneObject = new SceneObject("root");
+    private static isEditorCamera = true;
 
-    public constructor() {
-        if(Editor.instance != null) {
-            throw new TypeError("There Can Only Exist One Version Of An Editor");
-        }
-
-        Editor.camera = new CameraObject(shaderProgram.ShaderPrograms['coordinate']);
-        Editor.scene = new Scene();
-
-        Editor.instance = this;
+    private static UpdateBind: any = null;
+    private static FixedUpdateBind: any = null;
+    private static EditorFixedUpdateBind = Editor.EditorFixedUpdate.bind(Editor);
+    static {
+        Editor.CameraObject.addComponent(EditorCamera);
+        document.addEventListener("FixedUpdate", Editor.EditorFixedUpdateBind);
+        Keyboard.getKey("KeyO").addKeyDownListener({name: "PlaySceneInEditor", doAction: (key) => { Editor.play() }})
+        Keyboard.getKey("KeyP").addKeyDownListener({name: "StopSceneInEditor", doAction: (key) => { Editor.stop() }})
+        Keyboard.getKey("KeyL").addKeyDownListener({name: "SwitchToEditorCamera", doAction: (key) => { Debug.Log(`Current Camera Toggle: ${(Editor.isEditorCamera) ? "Editor" : "SceneGraph"}`); this.isEditorCamera = !this.isEditorCamera; }})
     }
 
-    public static get Camera() {
-        return this.camera;
+    public static get IsEditorCamera(): boolean {
+        return Editor.isEditorCamera;
     }
 
-    public static get Scene() {
-        return this.scene;
+    public static get Camera(): EditorCamera {
+        return this.CameraObject.getComponent(EditorCamera) as EditorCamera;
     }
 
-    public static fixedUpdate():void {
-        this.scene.fixedUpdate();
-        this.camera.noClipControls();
+    public static LoadSceneGraph(sceneGraphConstructor: new () => SceneGraph) {
+        SceneGraph.Current = new sceneGraphConstructor();
+        SceneGraph.Current.SetAsCurrent();
+        this.UpdateBind = SceneGraph.Current.Update.bind(SceneGraph.Current);
+        this.FixedUpdateBind = SceneGraph.Current.FixedUpdate.bind(SceneGraph.Current);
     }
+
+    private static play() {
+        if(!SceneGraph.Current) { Debug.LogWarning("Cant Play Scene If No Scene Graph Exists");  return; }
+        document.addEventListener("Update", Editor.UpdateBind);
+        document.addEventListener("FixedUpdate", Editor.FixedUpdateBind);
+        this.isEditorCamera = false;
+        Debug.Log(`Current Camera Toggle: ${(Editor.isEditorCamera) ? "Editor" : "SceneGraph"}`);
+    }
+
+    private static stop() {
+        if(!SceneGraph.Current) { Debug.LogWarning("Cant Stop Scene If No Scene Graph Exists");  return; }
+        document.removeEventListener("Update", Editor.UpdateBind);
+        document.removeEventListener("FixedUpdate", Editor.FixedUpdateBind);
+        this.LoadSceneGraph(SceneGraph.Current.constructor as new () => SceneGraph);
+        this.isEditorCamera = true;
+        Debug.Log(`Current Camera Toggle: ${(Editor.isEditorCamera) ? "Editor" : "SceneGraph"}`);
+    }
+
+
+    private static EditorFixedUpdate() {
+        Editor.Camera.noClipControls();
+    }
+    
 }
 
 export default Editor;
