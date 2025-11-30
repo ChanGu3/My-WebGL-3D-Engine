@@ -24,10 +24,6 @@
 .justify-center {
   justify-content: center;
 }
-.border {
-  border-style: var(--tw-border-style);
-  border-width: 1px;
-}
 .bg-3DE-primary-light {
   background-color: var(--color-3DE-primary-light);
 }
@@ -64,11 +60,6 @@
 @property --tw-skew-y {
   syntax: "*";
   inherits: false;
-}
-@property --tw-border-style {
-  syntax: "*";
-  inherits: false;
-  initial-value: solid;
 }
 @property --tw-shadow {
   syntax: "*";
@@ -143,7 +134,6 @@
       --tw-rotate-z: initial;
       --tw-skew-x: initial;
       --tw-skew-y: initial;
-      --tw-border-style: solid;
       --tw-shadow: 0 0 #0000;
       --tw-shadow-color: initial;
       --tw-shadow-alpha: 100%;

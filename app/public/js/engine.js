@@ -3005,6 +3005,7 @@
           _Texture.textures["rocky-forest-ground-4096x4096"] = await _Texture.AddToTextures("rocky-forest-ground-4096x4096.png");
           _Texture.textures["2k_moon"] = await _Texture.AddToTextures("2k_moon.jpg");
           _Texture.textures["sign"] = await _Texture.AddToTextures("sign.png");
+          _Texture.textures["water"] = await _Texture.AddToTextures("water.jpg");
         }
         // @ts-ignore
         static async AddToTextures(fileName) {
@@ -3265,10 +3266,12 @@
         }
         CreateObject() {
           this.sphere = new SceneObject_default("sphere");
+          this.sphere.Transform.rotation = Vec3_default.create(0, 0.275, -0.125);
           const sphere1_3DRenderer = this.sphere.addComponent(Renderer3D_default);
           sphere1_3DRenderer.Mesh = Mesh_default.Meshes["sphere"];
           sphere1_3DRenderer.Material.Ambient = 1;
-          sphere1_3DRenderer.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(1, 1, 1, 0.1));
+          sphere1_3DRenderer.Material.Opaque = 0.05;
+          sphere1_3DRenderer.Material.Texture = Texture_default.Textures["water"];
           this.sphere.setParent(this.SceneObject);
           this.cubeLight = new SceneObject_default("PointLight");
           this.cubeLight.Transform.position = Vec3_default.create(0, 0, 0);
@@ -3548,7 +3551,7 @@
           const canvas = document.getElementById(canvasID);
           _Engine3D.instance = new _Engine3D(canvas);
           _Engine3D.instance.renderer = new Renderer_default();
-          _Engine3D.instance.viewport = new Viewport_default(canvas, 500, 500);
+          _Engine3D.instance.viewport = new Viewport_default(canvas, 854, 480);
           await ShaderProgram_default.LoadShaderPrograms();
           await Mesh_default.LoadMeshes();
           await Texture_default.LoadTextures();

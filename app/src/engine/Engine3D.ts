@@ -23,7 +23,7 @@ class Engine3D {
         const canvas: HTMLCanvasElement = (document.getElementById(canvasID) as HTMLCanvasElement);
         Engine3D.instance = new Engine3D(canvas);
         Engine3D.instance.renderer = new Renderer();
-        Engine3D.instance.viewport = new Viewport(canvas, 500, 500);
+        Engine3D.instance.viewport = new Viewport(canvas, 854, 480);
         
         await ShaderProgram.LoadShaderPrograms();
         await Mesh.LoadMeshes();

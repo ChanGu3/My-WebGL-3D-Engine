@@ -102,6 +102,7 @@ class Texture {
         Texture.textures['rocky-forest-ground-4096x4096'] = await Texture.AddToTextures('rocky-forest-ground-4096x4096.png');
         Texture.textures['2k_moon'] = await Texture.AddToTextures('2k_moon.jpg');
         Texture.textures['sign'] = await Texture.AddToTextures('sign.png');
+        Texture.textures['water'] = await Texture.AddToTextures('water.jpg');
     }
 
     // @ts-ignore

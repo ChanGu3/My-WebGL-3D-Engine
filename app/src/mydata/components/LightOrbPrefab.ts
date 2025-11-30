@@ -37,10 +37,12 @@ class LightOrbPrefab extends SceneObject.Component
 
     private CreateObject() {
         this.sphere = new SceneObject("sphere");
+        this.sphere.Transform.rotation = Vec3.create(0,0.275,-0.125);
         const sphere1_3DRenderer = this.sphere.addComponent(Renderer3D);
         sphere1_3DRenderer.Mesh = Mesh.Meshes['sphere'];
         sphere1_3DRenderer.Material.Ambient = 1;
-        sphere1_3DRenderer.Material.Texture = Texture.COLOR_TEXTURE_DATA(Vec4.create(1,1,1,0.1));
+        sphere1_3DRenderer.Material.Opaque = 0.05;
+        sphere1_3DRenderer.Material.Texture = Texture.Textures['water'];//Texture.COLOR_TEXTURE_DATA(Vec4.create(1,1,1,0.05));
         this.sphere.setParent(this.SceneObject);
 
         this.cubeLight = new SceneObject("PointLight");
