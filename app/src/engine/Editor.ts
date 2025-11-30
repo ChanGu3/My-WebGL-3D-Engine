@@ -1,7 +1,6 @@
-import CameraObject from "./CameraObject";
 import Debug from "./Debug";
 import Keyboard from "./InputDevices/Keyboard";
-import Camera from "./Scene/Components/Cameras/Camera";
+import Vec3 from "./linear-algebra/Vec3";
 import EditorCamera from "./Scene/Components/Cameras/EditorCamera";
 import SceneGraph from "./Scene/SceneGraph";
 import SceneObject from "./Scene/SceneObject"
@@ -12,13 +11,17 @@ import SceneObject from "./Scene/SceneObject"
 class Editor {
 
     private static CameraObject: SceneObject = new SceneObject("root");
+    private static isInPlay: boolean = false;
     private static isEditorCamera = true;
+    public static StartEvent = new Event("EditorStartEvent");
 
     private static UpdateBind: any = null;
     private static FixedUpdateBind: any = null;
     private static EditorFixedUpdateBind = Editor.EditorFixedUpdate.bind(Editor);
     static {
         Editor.CameraObject.addComponent(EditorCamera);
+        Editor.CameraObject.Transform.position = Vec3.create(0,1,-1.5);
+        Editor.CameraObject.Transform.rotation = Vec3.create(-0.0625,0,0);
         document.addEventListener("FixedUpdate", Editor.EditorFixedUpdateBind);
         Keyboard.getKey("KeyO").addKeyDownListener({name: "PlaySceneInEditor", doAction: (key) => { Editor.play() }})
         Keyboard.getKey("KeyP").addKeyDownListener({name: "StopSceneInEditor", doAction: (key) => { Editor.stop() }})
@@ -41,14 +44,19 @@ class Editor {
     }
 
     private static play() {
+        if(this.isInPlay) { return; }
+        this.isInPlay = true;
         if(!SceneGraph.Current) { Debug.LogWarning("Cant Play Scene If No Scene Graph Exists");  return; }
         document.addEventListener("Update", Editor.UpdateBind);
         document.addEventListener("FixedUpdate", Editor.FixedUpdateBind);
-        this.isEditorCamera = false;
+        document.dispatchEvent(Editor.StartEvent);
+        if (SceneGraph.Current.Camera) {this.isEditorCamera = false;}
         Debug.Log(`Current Camera Toggle: ${(Editor.isEditorCamera) ? "Editor" : "SceneGraph"}`);
     }
 
     private static stop() {
+        if(!this.isInPlay) { return; }
+        this.isInPlay = false;
         if(!SceneGraph.Current) { Debug.LogWarning("Cant Stop Scene If No Scene Graph Exists");  return; }
         document.removeEventListener("Update", Editor.UpdateBind);
         document.removeEventListener("FixedUpdate", Editor.FixedUpdateBind);
@@ -59,7 +67,9 @@ class Editor {
 
 
     private static EditorFixedUpdate() {
-        Editor.Camera.noClipControls();
+        if(Editor.isEditorCamera) {
+            Editor.Camera.noClipControls();
+        }
     }
     
 }

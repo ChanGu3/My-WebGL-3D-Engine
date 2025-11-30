@@ -2,7 +2,7 @@ import Light from "./Light";
 
 class PointLight extends Light {
 
-    private light_coefficient:number = 1.8;
+    private light_coefficient:number = 1.8; // the less this number the greater the intensity of the distance to an object
 
     public get Light_Coefficient():number {
         return this.light_coefficient;

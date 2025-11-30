@@ -85,6 +85,18 @@ class Vec3 {
     }
 
     /**
+     * Returns the vector sum between this and other.
+     */
+    public mul( other: Vec3 ): Vec3 {
+        const summedVec4: Vec3_T = {
+            X:this.x * other.x,
+            Y:this.y * other.y,
+            Z:this.z * other.z,
+        }
+        return new Vec3(summedVec4);
+    }
+
+    /**
      * Returns the vector sub between this and other.
      */
     public sub( other: Vec3 ): Vec3 {

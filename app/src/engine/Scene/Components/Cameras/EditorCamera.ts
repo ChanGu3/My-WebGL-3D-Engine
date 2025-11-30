@@ -6,15 +6,19 @@ import Camera from "./Camera";
 
 class EditorCamera extends Camera {
 
-    private normalSpeed:number = 0.125;
+    private readonly normalSpeed:number = 4;
     private spd:number = 0;
+
+    private get spdRot() {
+        return this.normalSpeed * 0.125;
+    }
     /*
     *  for no clipping
     */
     public noClipControls():void {
         this.spd = this.normalSpeed;
         if(Keyboard.getKey("ShiftLeft").isPressing){
-            this.spd *= 3;
+            this.spd /= 3;
         }
 
         const camLocalDirectionZ: Vec4 = this.SceneObject.Transform.localDirectionZ();
@@ -61,7 +65,7 @@ class EditorCamera extends Camera {
         // pitch up
         if(Keyboard.getKey("ArrowUp").isPressing) {
             if(this.SceneObject.Transform.rotation.X < 0.24) {
-                rotationChange = rotationChange.add(Vec3.create(this.spd * Time.FixedTime, 0, 0));
+                rotationChange = rotationChange.add(Vec3.create(this.spdRot * Time.FixedTime, 0, 0));
             } else {
                 this.SceneObject.Transform.rotation = Vec3.create(0.24, this.SceneObject.Transform.rotation.Y, this.SceneObject.Transform.rotation.Z);
             }
@@ -69,18 +73,18 @@ class EditorCamera extends Camera {
         // pitch down
         if(Keyboard.getKey("ArrowDown").isPressing) {
             if(this.SceneObject.Transform.rotation.X > -0.24) {
-                rotationChange = rotationChange.add(Vec3.create(this.spd * Time.FixedTime, 0, 0).scaled(-1));
+                rotationChange = rotationChange.add(Vec3.create(this.spdRot * Time.FixedTime, 0, 0).scaled(-1));
             } else {
                 this.SceneObject.Transform.rotation = Vec3.create(-0.24, this.SceneObject.Transform.rotation.Y, this.SceneObject.Transform.rotation.Z);
             }
         }
         // yaw left
         if(Keyboard.getKey("ArrowLeft").isPressing) {
-            rotationChange = rotationChange.add(Vec3.create(0, this.spd * Time.FixedTime, 0));
+            rotationChange = rotationChange.add(Vec3.create(0, this.spdRot * Time.FixedTime, 0));
         }
         // yaw right
         if(Keyboard.getKey("ArrowRight").isPressing) {
-            rotationChange = rotationChange.add(Vec3.create(0, this.spd * Time.FixedTime, 0).scaled(-1));
+            rotationChange = rotationChange.add(Vec3.create(0, this.spdRot * Time.FixedTime, 0).scaled(-1));
         }
         this.SceneObject.Transform.rotation = this.SceneObject.Transform.rotation.add(rotationChange);
     }

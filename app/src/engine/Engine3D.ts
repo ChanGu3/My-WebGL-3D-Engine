@@ -5,6 +5,7 @@ import Mesh from "./rendering/Mesh";
 import Texture from "./rendering/Texture";
 import Editor from "./Editor";
 import TestScene from "../mydata/TestScene";
+import LightGameScene from "../mydata/LightGameScene";
 
 class Engine3D {
 
@@ -28,7 +29,7 @@ class Engine3D {
         await Mesh.LoadMeshes();
         await Texture.LoadTextures();
 
-        Editor.LoadSceneGraph(TestScene);
+        Editor.LoadSceneGraph(LightGameScene);
         Renderer.render();
     } 
 

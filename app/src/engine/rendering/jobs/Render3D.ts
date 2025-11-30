@@ -22,6 +22,10 @@ class Render3D {
         return this.matrix;
     }
 
+    public get Material() {
+        return this.material;
+    }
+
     /*
     *  renders the object every frame.
     */

@@ -9,7 +9,7 @@ class Camera extends SceneObject.Component {
 
     private degrees: number = 60;
     private readonly near: number = 0.025;
-    private readonly far: number = 10;
+    private readonly far: number = 80;
 
     /*
      * gets the perspective matrix of this current camera

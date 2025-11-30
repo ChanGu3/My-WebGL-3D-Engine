@@ -99,6 +99,9 @@ class Texture {
         Texture.textures['test2'] = await Texture.AddToTextures('test2.jpg');
         Texture.textures['metal_scale'] = await Texture.AddToTextures('metal_scale.png');
         Texture.textures['bell'] = await Texture.AddToTextures('bell.png');
+        Texture.textures['rocky-forest-ground-4096x4096'] = await Texture.AddToTextures('rocky-forest-ground-4096x4096.png');
+        Texture.textures['2k_moon'] = await Texture.AddToTextures('2k_moon.jpg');
+        Texture.textures['sign'] = await Texture.AddToTextures('sign.png');
     }
 
     // @ts-ignore
@@ -122,12 +125,14 @@ class Texture {
 
     public bind():void {
         Engine3D.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, this.texture );
-        (!this.isFullyOpaque) ? Engine3D.inst.GL.depthMask(false) : null;
     }
 
     public unbind():void {
         Engine3D.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, null );
-        (!this.isFullyOpaque) ? Engine3D.inst.GL.depthMask(true) : null;
+    }
+
+    public get IsFullyOpaque():boolean {
+        return this.isFullyOpaque;
     }
 }
 

@@ -14,7 +14,7 @@ class SceneObject {
 
         private sceneObject: SceneObject;
 
-
+        private StartBind = this.Start.bind(this);
         private UpdateBind = this.Update.bind(this);
         private FixedUpdateBind = this.FixedUpdate.bind(this);
         constructor(sceneObject: SceneObject) {
@@ -23,11 +23,13 @@ class SceneObject {
         }
 
         public addExistingOverridesToEvents() {
+            if ( this.constructor.prototype["Start"] !== Component.prototype["Start"]) { document.addEventListener("EditorStartEvent", this.StartBind) }
             if ( this.constructor.prototype["Update"] !== Component.prototype["Update"]) { document.addEventListener("SceneGraphUpdate", this.UpdateBind) }
             if ( this.constructor.prototype["FixedUpdate"] !== Component.prototype["FixedUpdate"]) { document.addEventListener("SceneGraphFixedUpdate", this.FixedUpdateBind) }
         }
 
         public removeExistingOverridesFromEvents() {
+            if ( this.constructor.prototype["Start"] !== Component.prototype["Start"]) { document.removeEventListener("EditorStartEvent", this.StartBind) }
             if ( this.constructor.prototype["Update"] !== Component.prototype["Update"]) { document.removeEventListener("SceneGraphUpdate", this.UpdateBind) }
             if ( this.constructor.prototype["FixedUpdate"] !== Component.prototype["FixedUpdate"]) { document.removeEventListener("SceneGraphFixedUpdate", this.FixedUpdateBind) }
         }
@@ -60,17 +62,19 @@ class SceneObject {
      * use "root" as the name for a root object otherwise just use the root object creator
     */
     constructor(name: string) {
+        this.name = name;
+
         if(name == "root") { 
             this.root = this;
             this.parent = null;
-            this.name = name;
             return;
         }
-        if(SceneObject.CURRENT_ROOT_SCENE_OBJECT == null) { throw new Error(`Must assign the ROOT_SCENE_OBJECT before creating a new scene object`); }
-
-        this.root = SceneObject.CURRENT_ROOT_SCENE_OBJECT;
-        SceneObject.CURRENT_ROOT_SCENE_OBJECT.addChild(this);
-        this.name = name;
+        else
+        {
+            if(SceneObject.CURRENT_ROOT_SCENE_OBJECT == null) { throw new Error(`Must assign the ROOT_SCENE_OBJECT before creating a new scene object`); }
+            this.root = SceneObject.CURRENT_ROOT_SCENE_OBJECT;
+            SceneObject.CURRENT_ROOT_SCENE_OBJECT.addChild(this);
+        }
     }
 
     public get Children(): SceneObject[] {
@@ -94,13 +98,7 @@ class SceneObject {
     }
 
     public get WorldPosition(): Vec3 {
-        let pos = this.transform.position;
-        let currParent: SceneObject|null = this.parent;
-        while(currParent != null) {
-            pos = currParent.transform.position.add(pos);
-            currParent = currParent.parent;
-        }
-        return pos;
+        return this.WorldModelMatrix.vectorBasisW().Vec3();
     }
 
     public get WorldModelMatrix(): Mat4 {
@@ -151,7 +149,7 @@ class SceneObject {
         if(SceneObject.CURRENT_ROOT_SCENE_OBJECT == child) { throw new Error(`cannot assign a ROOT_SCENE_OBJECT as a child`); }
 
 
-        if(child.parent != null) { child.parent.removeChild(child); }
+        if(child.parent) { child.parent.removeChild(child); }
         this.children.push(child);
         child.parent = this;
     }
@@ -162,7 +160,7 @@ class SceneObject {
     public getChild(index: number): SceneObject | null {
         if(index < 0) { Debug.LogError(`Scene Object with Name ${this.Name} attempted a get on a negative index [value: ${index}]`); return null; }
         if(this.children.length === 0) { Debug.LogError(`Scene Object With Name '${this.name}' does not have any children`); return null; }
-        if(this.children.length >= index) { Debug.LogError(`Scene Object With Name '${this.name}' does not have a child at index [value: ${index}]`); return null; }
+        if(this.children.length-1 < index) { Debug.LogError(`Scene Object With Name '${this.name}' does not have a child at index [value: ${index}]`); return null; }
 
         return this.children[index];
     }
@@ -190,7 +188,7 @@ class SceneObject {
         if(!this.parent || SceneObject.CURRENT_ROOT_SCENE_OBJECT == this) { throw new Error(`ROOT_SCENE_OBJECT does not contain a parent to move relatively`); }
         if(index < 0) { Debug.LogError(`attempted to set index to a negative index [value: ${index}]`, "Scene Objects"); return; }
         if(this.parent.children.length === 1) { Debug.LogWarning(`attempted to move ${this.Name} but it is an only child of ${this.parent.Name}`, "Scene Objects"); return; }
-        if(this.children.length >= index) { Debug.LogError(`cannot move '${this.name}' to a index higher than what exist on the current parent ${this.parent.Name} [value: ${index}]`, "Scene Objects"); return null; }
+        if(this.parent.children.length <= index) { Debug.LogError(`cannot move '${this.name}' to a index higher than what exist on the current parent ${this.parent.Name} [value: ${index}]`, "Scene Objects"); return null; }
 
         const thisIndex = this.parent.findChildIndex(this);
         if (thisIndex === index) { return; }

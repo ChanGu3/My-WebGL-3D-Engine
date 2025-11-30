@@ -8,6 +8,7 @@ import SceneObject from "../engine/Scene/SceneObject";
 import DirectionalLight from '../engine/Scene/Components/Lights/DirectionalLight'
 import Vec4 from "../engine/linear-algebra/Vec4";
 import PointLight from "../engine/Scene/Components/Lights/PointLight";
+import Camera from "../engine/Scene/Components/Cameras/Camera";
 
 class TestScene extends SceneGraph {
 
@@ -30,7 +31,6 @@ class TestScene extends SceneGraph {
         const cube0_3DRenderer = cube0.getComponent(Renderer3D) as Renderer3D;
         cube0_3DRenderer.Mesh = meshC;
         cube0_3DRenderer.ShaderProgram = shaderC;
-
 
         const cube2 = new SceneObject("cube2");
         cube2.Transform.scale = Vec3.create(0.1, 0.1, 0.1);
@@ -63,7 +63,7 @@ class TestScene extends SceneGraph {
 
 
         const sphere1 = new SceneObject("sphere");
-        sphere1.Transform.position = Vec3.create(0,0,0.25);
+        sphere1.Transform.position = Vec3.create(-5,0, -5);
         sphere1.Transform.scale = Vec3.create(0.1,0.1,0.1);
         sphere1.addComponent(Renderer3D);
         const sphere1_3DRenderer = sphere1.getComponent(Renderer3D) as Renderer3D;
@@ -79,17 +79,32 @@ class TestScene extends SceneGraph {
         light1.addComponent(DirectionalLight);
 */
         const light2 = new SceneObject("PointLight");
-        light2.Transform.position = Vec3.create(0,0,0);
+        light2.Transform.position = Vec3.create(5,0.25,5);
         light2.Transform.scale = Vec3.create(0.5,0.5,0.5);
-        light2.addComponent(Renderer3D);
-        const light2_3DRenderer = light2.getComponent(Renderer3D) as Renderer3D;
+        const light2_3DRenderer = light2.addComponent(Renderer3D);
         light2_3DRenderer.Mesh = meshD;
         light2_3DRenderer.Material.Ambient = 1;
         light2_3DRenderer.Material.Texture = Texture.COLOR_TEXTURE_DATA(Vec4.create(1,1,1,1));
         light2_3DRenderer.ShaderProgram = shaderD;
-        light2.addComponent(PointLight);
+        const light2_POINTLIGHT = light2.addComponent(PointLight);
+        light2_POINTLIGHT.Light_Coefficient = 3.2;
 
         light2.setParent(sphere1);
+
+        console.log(light2.WorldPosition);
+
+        const camera = new SceneObject("camera");
+        this.Camera = camera.addComponent(Camera);
+
+
+        const ground = new SceneObject("ground");
+        ground.Transform.position = Vec3.create(0,-0.5,0.5);
+        ground.Transform.scale = Vec3.create(100,0.05,100);
+        const ground_3DRenderer = ground.addComponent(Renderer3D);
+        ground_3DRenderer.Mesh = meshCD;
+        ground_3DRenderer.Material.Texture = Texture.Textures['rocky-forest-ground-4096x4096'];
+        ground_3DRenderer.ShaderProgram = shaderD;
+        
     }
 }
 

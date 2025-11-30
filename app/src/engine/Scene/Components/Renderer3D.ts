@@ -8,7 +8,7 @@ import SceneObject from "../SceneObject";
 
 class Renderer3D extends SceneObject.Component {
     private mesh: Mesh|null = null;
-    private shaderProgram: ShaderProgram|null = null;
+    private shaderProgram: ShaderProgram = ShaderProgram.ShaderPrograms['default'];
     private material: Material = new Material();
 
     public set ShaderProgram(shaderProgram: ShaderProgram) {
@@ -31,7 +31,7 @@ class Renderer3D extends SceneObject.Component {
     *  renders the object every frame.
     */
     public add_render_job(relativeMat4: Mat4 = Mat4.identity()):void {
-        if(this.mesh && this.shaderProgram) {
+        if(this.mesh) {
             Renderer.AddRenderJob(new Render3D(this.shaderProgram, relativeMat4, this.mesh, this.material));
         }
     }

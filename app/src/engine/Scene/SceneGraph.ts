@@ -12,16 +12,17 @@ abstract class SceneGraph {
     public static Current: SceneGraph|null = null; 
 
     private camera: Camera|null = null;
-    protected root: SceneObject = new SceneObject("root");
+    protected root: SceneObject = new SceneObject("root");;
 
     public UpdateEvent: Event = new Event("SceneGraphUpdate" )
     public FixedUpdateEvent: Event = new Event("SceneGraphFixedUpdate");
 
     constructor() {
+        SceneObject.set_ROOT_SCENE_OBJECT(this.root);
         if( SceneGraph.Current != null ) { SceneGraph.Current.RemoveAllEvents(); }
 
         SceneGraph.Current = this;
-        SceneObject.set_ROOT_SCENE_OBJECT(this.root);
+
         //SceneGraph.Current.AddAllEvents();
     }
 
@@ -51,9 +52,9 @@ abstract class SceneGraph {
         if(renderer3D) { renderer3D.add_render_job(relativeMat4); }
         
         const directionLight = currentSceneObject.getComponent(DirectionalLight); 
-        if (directionLight) { Renderer.light3DJobs.push(new DirectionalLight3D(directionLight.Color, directionLight.Transform.rotation)) }
+        if (directionLight && !directionLight.IsLightDisabled) { Renderer.light3DJobs.push(new DirectionalLight3D(directionLight.Color, directionLight.Transform.rotation)) }
         const pointLight = currentSceneObject.getComponent(PointLight);
-        if (pointLight) { Renderer.light3DJobs.push(new PointLight3D(pointLight.Color, pointLight.SceneObject.WorldPosition, pointLight.Light_Coefficient)) }
+        if (pointLight && !pointLight.IsLightDisabled) { Renderer.light3DJobs.push(new PointLight3D(pointLight.Color, pointLight.SceneObject.WorldPosition, pointLight.Light_Coefficient)) }
 
         currentSceneObject.Children.forEach((child) => {
             this.generateJobs(child, relativeMat4);
@@ -77,7 +78,7 @@ abstract class SceneGraph {
         })
 
         currentSceneObject.Children.forEach((child) => {
-            this.AddAllEvents(child);
+            this.RemoveAllEvents(child);
         })
     }
 }

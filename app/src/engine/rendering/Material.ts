@@ -14,12 +14,16 @@ class Material {
 
     public Opaque:number = 1; // 0 - fully transparent | 1 - fully opaque
 
+    public get HasTransparency(): boolean {
+        return this.Opaque < 1 || ((this.Texture) ? !this.Texture.IsFullyOpaque : false);
+    }
+
     /*
      * binds the material data to buffer and uniforms
     */
     public bind() {
         if( this.Texture ) { this.Texture.bind(); }
-        (this.Opaque < 1) ? Engine3D.inst.GL.depthMask(false) : null;
+        (this.HasTransparency) ? Engine3D.inst.GL.depthMask(false) : null;
     }
 
     /*
@@ -27,7 +31,7 @@ class Material {
     */
     public unbind() {
         if( this.Texture ) { this.Texture.unbind(); }
-        (this.Opaque < 1) ? Engine3D.inst.GL.depthMask(true) : null;
+        (this.HasTransparency) ? Engine3D.inst.GL.depthMask(true) : null;
     }
 }
 

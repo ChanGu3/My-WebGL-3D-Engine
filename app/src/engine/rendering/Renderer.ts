@@ -20,6 +20,7 @@ class Renderer {
     public static StartNewFrameEvent:Event = new Event("StartNewFrameEvent");
 
     public static Camera: Camera = Editor.Camera;
+    private static renderTransparent3DJobs: Render3D[] = [];
     public static render3DJobs: Render3D[] = [];
     public static light3DJobs: Light3D[] = [];
 
@@ -81,18 +82,27 @@ class Renderer {
         return Renderer.Camera.SceneObject.WorldPosition.sub(matrix.vectorBasisW().Vec3()).magnitude;
     }
 
-    public static AddRenderJob(render3D: Render3D) {       
+    public static AddRenderJob(render3D: Render3D) {
+        if(render3D.Material.HasTransparency) {
+            Renderer.AddTransparentRenderJob(render3D);
+        }
+        else {
+            Renderer.render3DJobs.push(render3D);
+        }
+    }
+
+    private static AddTransparentRenderJob(render3D: Render3D) {       
 
         const renderMag = Renderer.GetDistanceToCamera(render3D.Matrix);  
         let startIndex = 0;
-        let endIndex = Renderer.render3DJobs.length;;
+        let endIndex = Renderer.renderTransparent3DJobs.length;;
 
         while(startIndex < endIndex)
         { 
             const mid = (startIndex + endIndex) >>> 1;
-            const listMag = Renderer.GetDistanceToCamera(Renderer.render3DJobs[mid].Matrix); 
+            const listMag = Renderer.GetDistanceToCamera(Renderer.renderTransparent3DJobs[mid].Matrix); 
 
-            if(renderMag === listMag) { Renderer.render3DJobs.splice(mid+1, 0, render3D); return; }
+            if(renderMag === listMag) { Renderer.renderTransparent3DJobs.splice(mid+1, 0, render3D); return; }
 
             if(renderMag < listMag) {
                 startIndex = mid + 1;
@@ -102,19 +112,23 @@ class Renderer {
             }
         }
 
-        Renderer.render3DJobs.splice(startIndex, 0, render3D); return;
+        Renderer.renderTransparent3DJobs.splice(startIndex, 0, render3D); return;
     }
 
     private static ClearJobs(){
         this.light3DJobs = []
         this.render3DJobs = []
+        this.renderTransparent3DJobs = []
     }
 
     private static Render3DSceneGraph() {
         for (const render3D of Renderer.render3DJobs) {
             render3D.render();
         }
-        this.render3DJobs = [];
+
+        for (const render3D of Renderer.renderTransparent3DJobs) {
+            render3D.render();
+        }
     }
 
     private static directionalLightsCount: number = 0;

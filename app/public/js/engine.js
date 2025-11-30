@@ -352,6 +352,17 @@
           return new _Vec3(summedVec4);
         }
         /**
+         * Returns the vector sum between this and other.
+         */
+        mul(other) {
+          const summedVec4 = {
+            X: this.x * other.x,
+            Y: this.y * other.y,
+            Z: this.z * other.z
+          };
+          return new _Vec3(summedVec4);
+        }
+        /**
          * Returns the vector sub between this and other.
          */
         sub(other) {
@@ -1083,6 +1094,9 @@
         modelMatrix() {
           return Mat4_default.translation(this.position.X, this.position.Y, this.position.Z).multiply(Mat4_default.rotation_xz(this.rotation.Y).multiply(Mat4_default.rotation_yz(this.rotation.X).multiply(Mat4_default.rotation_xy(this.rotation.Z).multiply(Mat4_default.scale(this.scale.X, this.scale.Y, this.scale.Z).multiply(Mat4_default.identity())))));
         }
+        static GetRotationMatrix(rotation) {
+          return Mat4_default.rotation_xz(rotation.Y).multiply(Mat4_default.rotation_yz(rotation.X).multiply(Mat4_default.rotation_xy(rotation.Z).multiply(Mat4_default.identity())));
+        }
         localDirectionZ() {
           return this.modelMatrix().vectorBasisZ().normalized();
         }
@@ -1113,6 +1127,7 @@
         }
         static Component = class Component {
           sceneObject;
+          StartBind = this.Start.bind(this);
           UpdateBind = this.Update.bind(this);
           FixedUpdateBind = this.FixedUpdate.bind(this);
           constructor(sceneObject) {
@@ -1122,6 +1137,9 @@
             }
           }
           addExistingOverridesToEvents() {
+            if (this.constructor.prototype["Start"] !== Component.prototype["Start"]) {
+              document.addEventListener("EditorStartEvent", this.StartBind);
+            }
             if (this.constructor.prototype["Update"] !== Component.prototype["Update"]) {
               document.addEventListener("SceneGraphUpdate", this.UpdateBind);
             }
@@ -1130,6 +1148,9 @@
             }
           }
           removeExistingOverridesFromEvents() {
+            if (this.constructor.prototype["Start"] !== Component.prototype["Start"]) {
+              document.removeEventListener("EditorStartEvent", this.StartBind);
+            }
             if (this.constructor.prototype["Update"] !== Component.prototype["Update"]) {
               document.removeEventListener("SceneGraphUpdate", this.UpdateBind);
             }
@@ -1177,18 +1198,18 @@
          * use "root" as the name for a root object otherwise just use the root object creator
         */
         constructor(name) {
+          this.name = name;
           if (name == "root") {
             this.root = this;
             this.parent = null;
-            this.name = name;
             return;
+          } else {
+            if (_SceneObject.CURRENT_ROOT_SCENE_OBJECT == null) {
+              throw new Error(`Must assign the ROOT_SCENE_OBJECT before creating a new scene object`);
+            }
+            this.root = _SceneObject.CURRENT_ROOT_SCENE_OBJECT;
+            _SceneObject.CURRENT_ROOT_SCENE_OBJECT.addChild(this);
           }
-          if (_SceneObject.CURRENT_ROOT_SCENE_OBJECT == null) {
-            throw new Error(`Must assign the ROOT_SCENE_OBJECT before creating a new scene object`);
-          }
-          this.root = _SceneObject.CURRENT_ROOT_SCENE_OBJECT;
-          _SceneObject.CURRENT_ROOT_SCENE_OBJECT.addChild(this);
-          this.name = name;
         }
         get Children() {
           return this.children;
@@ -1211,13 +1232,7 @@
           return list;
         }
         get WorldPosition() {
-          let pos = this.transform.position;
-          let currParent = this.parent;
-          while (currParent != null) {
-            pos = currParent.transform.position.add(pos);
-            currParent = currParent.parent;
-          }
-          return pos;
+          return this.WorldModelMatrix.vectorBasisW().Vec3();
         }
         get WorldModelMatrix() {
           const mat4s = [];
@@ -1273,7 +1288,7 @@
           if (_SceneObject.CURRENT_ROOT_SCENE_OBJECT == child) {
             throw new Error(`cannot assign a ROOT_SCENE_OBJECT as a child`);
           }
-          if (child.parent != null) {
+          if (child.parent) {
             child.parent.removeChild(child);
           }
           this.children.push(child);
@@ -1291,7 +1306,7 @@
             Debug_default.LogError(`Scene Object With Name '${this.name}' does not have any children`);
             return null;
           }
-          if (this.children.length >= index) {
+          if (this.children.length - 1 < index) {
             Debug_default.LogError(`Scene Object With Name '${this.name}' does not have a child at index [value: ${index}]`);
             return null;
           }
@@ -1325,7 +1340,7 @@
             Debug_default.LogWarning(`attempted to move ${this.Name} but it is an only child of ${this.parent.Name}`, "Scene Objects");
             return;
           }
-          if (this.children.length >= index) {
+          if (this.parent.children.length <= index) {
             Debug_default.LogError(`cannot move '${this.name}' to a index higher than what exist on the current parent ${this.parent.Name} [value: ${index}]`, "Scene Objects");
             return null;
           }
@@ -1362,11 +1377,21 @@
       init_SceneObject();
       Light = class extends SceneObject_default.Component {
         color = Vec3_default.create(1, 1, 1);
+        isLightDisabled = false;
         get Color() {
           return this.color;
         }
         set Color(color) {
           this.color = color;
+        }
+        get IsLightDisabled() {
+          return this.isLightDisabled;
+        }
+        DisableLight() {
+          this.isLightDisabled = true;
+        }
+        EnableLight() {
+          this.isLightDisabled = false;
         }
       };
       Light_default = Light;
@@ -1391,6 +1416,7 @@
       init_Light();
       PointLight = class extends Light_default {
         light_coefficient = 1.8;
+        // the less this number the greater the intensity of the distance to an object
         get Light_Coefficient() {
           return this.light_coefficient;
         }
@@ -1421,6 +1447,9 @@
         }
         get Matrix() {
           return this.matrix;
+        }
+        get Material() {
+          return this.material;
         }
         /*
         *  renders the object every frame.
@@ -1465,6 +1494,9 @@
         Shininess = 4;
         Opaque = 1;
         // 0 - fully transparent | 1 - fully opaque
+        get HasTransparency() {
+          return this.Opaque < 1 || (this.Texture ? !this.Texture.IsFullyOpaque : false);
+        }
         /*
          * binds the material data to buffer and uniforms
         */
@@ -1472,7 +1504,7 @@
           if (this.Texture) {
             this.Texture.bind();
           }
-          this.Opaque < 1 ? Engine3D_default.inst.GL.depthMask(false) : null;
+          this.HasTransparency ? Engine3D_default.inst.GL.depthMask(false) : null;
         }
         /*
          * unbinds the material data to buffer and uniforms
@@ -1481,7 +1513,7 @@
           if (this.Texture) {
             this.Texture.unbind();
           }
-          this.Opaque < 1 ? Engine3D_default.inst.GL.depthMask(true) : null;
+          this.HasTransparency ? Engine3D_default.inst.GL.depthMask(true) : null;
         }
       };
       Material_default = Material;
@@ -1496,10 +1528,11 @@
       init_Render3D();
       init_Material();
       init_Renderer();
+      init_ShaderProgram();
       init_SceneObject();
       Renderer3D = class extends SceneObject_default.Component {
         mesh = null;
-        shaderProgram = null;
+        shaderProgram = ShaderProgram_default.ShaderPrograms["default"];
         material = new Material_default();
         set ShaderProgram(shaderProgram) {
           this.shaderProgram = shaderProgram;
@@ -1517,7 +1550,7 @@
         *  renders the object every frame.
         */
         add_render_job(relativeMat4 = Mat4_default.identity()) {
-          if (this.mesh && this.shaderProgram) {
+          if (this.mesh) {
             Renderer_default.AddRenderJob(new Render3D_default(this.shaderProgram, relativeMat4, this.mesh, this.material));
           }
         }
@@ -1545,11 +1578,11 @@
         UpdateEvent = new Event("SceneGraphUpdate");
         FixedUpdateEvent = new Event("SceneGraphFixedUpdate");
         constructor() {
+          SceneObject_default.set_ROOT_SCENE_OBJECT(this.root);
           if (_SceneGraph.Current != null) {
             _SceneGraph.Current.RemoveAllEvents();
           }
           _SceneGraph.Current = this;
-          SceneObject_default.set_ROOT_SCENE_OBJECT(this.root);
         }
         get Camera() {
           return this.camera;
@@ -1573,11 +1606,11 @@
             renderer3D.add_render_job(relativeMat4);
           }
           const directionLight = currentSceneObject.getComponent(DirectionalLight_default);
-          if (directionLight) {
+          if (directionLight && !directionLight.IsLightDisabled) {
             Renderer_default.light3DJobs.push(new DirectionalLight3D_default(directionLight.Color, directionLight.Transform.rotation));
           }
           const pointLight = currentSceneObject.getComponent(PointLight_default);
-          if (pointLight) {
+          if (pointLight && !pointLight.IsLightDisabled) {
             Renderer_default.light3DJobs.push(new PointLight3D_default(pointLight.Color, pointLight.SceneObject.WorldPosition, pointLight.Light_Coefficient));
           }
           currentSceneObject.Children.forEach((child) => {
@@ -1598,7 +1631,7 @@
             component.removeExistingOverridesFromEvents();
           });
           currentSceneObject.Children.forEach((child) => {
-            this.AddAllEvents(child);
+            this.RemoveAllEvents(child);
           });
         }
       };
@@ -1901,7 +1934,7 @@
       Camera = class _Camera extends SceneObject_default.Component {
         degrees = 60;
         near = 0.025;
-        far = 10;
+        far = 80;
         /*
          * gets the perspective matrix of this current camera
         */
@@ -1995,15 +2028,18 @@
       init_Time();
       init_Camera();
       EditorCamera = class extends Camera_default {
-        normalSpeed = 0.125;
+        normalSpeed = 4;
         spd = 0;
+        get spdRot() {
+          return this.normalSpeed * 0.125;
+        }
         /*
         *  for no clipping
         */
         noClipControls() {
           this.spd = this.normalSpeed;
           if (Keyboard_default.getKey("ShiftLeft").isPressing) {
-            this.spd *= 3;
+            this.spd /= 3;
           }
           const camLocalDirectionZ = this.SceneObject.Transform.localDirectionZ();
           const camDirection = new Vec3_default({ X: camLocalDirectionZ.X, Y: camLocalDirectionZ.Y, Z: camLocalDirectionZ.Z });
@@ -2038,23 +2074,23 @@
           }
           if (Keyboard_default.getKey("ArrowUp").isPressing) {
             if (this.SceneObject.Transform.rotation.X < 0.24) {
-              rotationChange = rotationChange.add(Vec3_default.create(this.spd * Time_default.FixedTime, 0, 0));
+              rotationChange = rotationChange.add(Vec3_default.create(this.spdRot * Time_default.FixedTime, 0, 0));
             } else {
               this.SceneObject.Transform.rotation = Vec3_default.create(0.24, this.SceneObject.Transform.rotation.Y, this.SceneObject.Transform.rotation.Z);
             }
           }
           if (Keyboard_default.getKey("ArrowDown").isPressing) {
             if (this.SceneObject.Transform.rotation.X > -0.24) {
-              rotationChange = rotationChange.add(Vec3_default.create(this.spd * Time_default.FixedTime, 0, 0).scaled(-1));
+              rotationChange = rotationChange.add(Vec3_default.create(this.spdRot * Time_default.FixedTime, 0, 0).scaled(-1));
             } else {
               this.SceneObject.Transform.rotation = Vec3_default.create(-0.24, this.SceneObject.Transform.rotation.Y, this.SceneObject.Transform.rotation.Z);
             }
           }
           if (Keyboard_default.getKey("ArrowLeft").isPressing) {
-            rotationChange = rotationChange.add(Vec3_default.create(0, this.spd * Time_default.FixedTime, 0));
+            rotationChange = rotationChange.add(Vec3_default.create(0, this.spdRot * Time_default.FixedTime, 0));
           }
           if (Keyboard_default.getKey("ArrowRight").isPressing) {
-            rotationChange = rotationChange.add(Vec3_default.create(0, this.spd * Time_default.FixedTime, 0).scaled(-1));
+            rotationChange = rotationChange.add(Vec3_default.create(0, this.spdRot * Time_default.FixedTime, 0).scaled(-1));
           }
           this.SceneObject.Transform.rotation = this.SceneObject.Transform.rotation.add(rotationChange);
         }
@@ -2069,17 +2105,22 @@
     "src/engine/Editor.ts"() {
       init_Debug();
       init_Keyboard();
+      init_Vec3();
       init_EditorCamera();
       init_SceneGraph();
       init_SceneObject();
       Editor = class _Editor {
         static CameraObject = new SceneObject_default("root");
+        static isInPlay = false;
         static isEditorCamera = true;
+        static StartEvent = new Event("EditorStartEvent");
         static UpdateBind = null;
         static FixedUpdateBind = null;
         static EditorFixedUpdateBind = _Editor.EditorFixedUpdate.bind(_Editor);
         static {
           _Editor.CameraObject.addComponent(EditorCamera_default);
+          _Editor.CameraObject.Transform.position = Vec3_default.create(0, 1, -1.5);
+          _Editor.CameraObject.Transform.rotation = Vec3_default.create(-0.0625, 0, 0);
           document.addEventListener("FixedUpdate", _Editor.EditorFixedUpdateBind);
           Keyboard_default.getKey("KeyO").addKeyDownListener({ name: "PlaySceneInEditor", doAction: (key) => {
             _Editor.play();
@@ -2105,16 +2146,27 @@
           this.FixedUpdateBind = SceneGraph_default.Current.FixedUpdate.bind(SceneGraph_default.Current);
         }
         static play() {
+          if (this.isInPlay) {
+            return;
+          }
+          this.isInPlay = true;
           if (!SceneGraph_default.Current) {
             Debug_default.LogWarning("Cant Play Scene If No Scene Graph Exists");
             return;
           }
           document.addEventListener("Update", _Editor.UpdateBind);
           document.addEventListener("FixedUpdate", _Editor.FixedUpdateBind);
-          this.isEditorCamera = false;
+          document.dispatchEvent(_Editor.StartEvent);
+          if (SceneGraph_default.Current.Camera) {
+            this.isEditorCamera = false;
+          }
           Debug_default.Log(`Current Camera Toggle: ${_Editor.isEditorCamera ? "Editor" : "SceneGraph"}`);
         }
         static stop() {
+          if (!this.isInPlay) {
+            return;
+          }
+          this.isInPlay = false;
           if (!SceneGraph_default.Current) {
             Debug_default.LogWarning("Cant Stop Scene If No Scene Graph Exists");
             return;
@@ -2126,7 +2178,9 @@
           Debug_default.Log(`Current Camera Toggle: ${_Editor.isEditorCamera ? "Editor" : "SceneGraph"}`);
         }
         static EditorFixedUpdate() {
-          _Editor.Camera.noClipControls();
+          if (_Editor.isEditorCamera) {
+            _Editor.Camera.noClipControls();
+          }
         }
       };
       Editor_default = Editor;
@@ -2148,6 +2202,7 @@
         static inst;
         static StartNewFrameEvent = new Event("StartNewFrameEvent");
         static Camera = Editor_default.Camera;
+        static renderTransparent3DJobs = [];
         static render3DJobs = [];
         static light3DJobs = [];
         constructor() {
@@ -2205,15 +2260,22 @@
           return _Renderer.Camera.SceneObject.WorldPosition.sub(matrix.vectorBasisW().Vec3()).magnitude;
         }
         static AddRenderJob(render3D) {
+          if (render3D.Material.HasTransparency) {
+            _Renderer.AddTransparentRenderJob(render3D);
+          } else {
+            _Renderer.render3DJobs.push(render3D);
+          }
+        }
+        static AddTransparentRenderJob(render3D) {
           const renderMag = _Renderer.GetDistanceToCamera(render3D.Matrix);
           let startIndex = 0;
-          let endIndex = _Renderer.render3DJobs.length;
+          let endIndex = _Renderer.renderTransparent3DJobs.length;
           ;
           while (startIndex < endIndex) {
             const mid = startIndex + endIndex >>> 1;
-            const listMag = _Renderer.GetDistanceToCamera(_Renderer.render3DJobs[mid].Matrix);
+            const listMag = _Renderer.GetDistanceToCamera(_Renderer.renderTransparent3DJobs[mid].Matrix);
             if (renderMag === listMag) {
-              _Renderer.render3DJobs.splice(mid + 1, 0, render3D);
+              _Renderer.renderTransparent3DJobs.splice(mid + 1, 0, render3D);
               return;
             }
             if (renderMag < listMag) {
@@ -2222,18 +2284,21 @@
               endIndex = mid;
             }
           }
-          _Renderer.render3DJobs.splice(startIndex, 0, render3D);
+          _Renderer.renderTransparent3DJobs.splice(startIndex, 0, render3D);
           return;
         }
         static ClearJobs() {
           this.light3DJobs = [];
           this.render3DJobs = [];
+          this.renderTransparent3DJobs = [];
         }
         static Render3DSceneGraph() {
           for (const render3D of _Renderer.render3DJobs) {
             render3D.render();
           }
-          this.render3DJobs = [];
+          for (const render3D of _Renderer.renderTransparent3DJobs) {
+            render3D.render();
+          }
         }
         static directionalLightsCount = 0;
         static directional_light_dir_list = [];
@@ -2937,6 +3002,9 @@
           _Texture.textures["test2"] = await _Texture.AddToTextures("test2.jpg");
           _Texture.textures["metal_scale"] = await _Texture.AddToTextures("metal_scale.png");
           _Texture.textures["bell"] = await _Texture.AddToTextures("bell.png");
+          _Texture.textures["rocky-forest-ground-4096x4096"] = await _Texture.AddToTextures("rocky-forest-ground-4096x4096.png");
+          _Texture.textures["2k_moon"] = await _Texture.AddToTextures("2k_moon.jpg");
+          _Texture.textures["sign"] = await _Texture.AddToTextures("sign.png");
         }
         // @ts-ignore
         static async AddToTextures(fileName) {
@@ -2955,93 +3023,504 @@
         }
         bind() {
           Engine3D_default.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, this.texture);
-          !this.isFullyOpaque ? Engine3D_default.inst.GL.depthMask(false) : null;
         }
         unbind() {
           Engine3D_default.inst.GL.bindTexture(WebGL2RenderingContext.TEXTURE_2D, null);
-          !this.isFullyOpaque ? Engine3D_default.inst.GL.depthMask(true) : null;
+        }
+        get IsFullyOpaque() {
+          return this.isFullyOpaque;
         }
       };
       Texture_default = Texture;
     }
   });
 
-  // src/mydata/TestScene.ts
-  var TestScene, TestScene_default;
-  var init_TestScene = __esm({
-    "src/mydata/TestScene.ts"() {
+  // src/mydata/components/GenerateWorld.ts
+  var GenerateWorld, GenerateWorld_default;
+  var init_GenerateWorld = __esm({
+    "src/mydata/components/GenerateWorld.ts"() {
+      init_Debug();
+      init_Vec2();
+      init_Vec3();
+      init_Vec4();
+      init_Mesh();
+      init_Texture();
+      init_Renderer3D();
+      init_SceneObject();
+      GenerateWorld = class extends SceneObject_default.Component {
+        offset = 2;
+        currentLength = 0;
+        get FULLLENGTH() {
+          return this.currentLength * 2 * this.offset + this.offset;
+        }
+        IsOutOfBounds(pos) {
+          const checker = this.SceneObject.Transform.position.add(Vec3_default.create(this.FULLLENGTH / 2 - this.offset * 2.75, this.FULLLENGTH / 2 - this.offset * 2.75, this.FULLLENGTH / 2 - this.offset * 2.75));
+          return Math.abs(pos.X) > Math.abs(checker.X) || Math.abs(pos.Z) > Math.abs(checker.Z);
+        }
+        Start() {
+          this.Generate(10);
+        }
+        Generate(length = 0, startPos = Vec3_default.create(0, 0, 0)) {
+          if (length < 0) {
+            Debug_default.LogWarning("Must Be A Length Greater than -1 To Generate Anything");
+            return;
+          }
+          this.currentLength = length;
+          this.GenerateGround(startPos, this.FULLLENGTH);
+          const negativeLength = -length;
+          let currentLength = length;
+          while (negativeLength <= currentLength) {
+            const currentPos = Vec3_default.create(startPos.X, startPos.Y, this.offset * currentLength);
+            const borderOffset = -this.offset;
+            if (length === currentLength) {
+              this.GenerateBorder(currentPos.add(Vec3_default.create(0, 0, borderOffset)), 5);
+            } else if (negativeLength === currentLength) {
+              this.GenerateBorder(currentPos.sub(Vec3_default.create(0, 0, borderOffset)), 5, Vec3_default.create(0, 0.5, 0));
+            }
+            const treeRemovalOffset = 2;
+            const treeCenterRemoval = 2;
+            if (currentLength < length - treeRemovalOffset && currentLength > negativeLength + treeRemovalOffset) {
+              if (currentLength <= -treeCenterRemoval || currentLength >= treeCenterRemoval) {
+                this.GenerateChunk(currentPos);
+              }
+            }
+            for (let i = 0; i < length; i++) {
+              const vecOffset = Vec3_default.create(this.offset * (i + 1), 0, 0);
+              const vecSubOffset = currentPos.sub(vecOffset);
+              const vecAddOffset = currentPos.add(vecOffset);
+              if (currentLength < length - treeRemovalOffset && currentLength > negativeLength + treeRemovalOffset && length - treeRemovalOffset > i + 1) {
+                if (i >= treeCenterRemoval - 1 || (currentLength <= -treeCenterRemoval || currentLength >= treeCenterRemoval)) {
+                  this.GenerateChunk(vecSubOffset);
+                  this.GenerateChunk(vecAddOffset);
+                }
+              }
+              if (length === currentLength) {
+                this.GenerateBorder(vecSubOffset.add(Vec3_default.create(0, 0, borderOffset)), 5);
+                this.GenerateBorder(vecAddOffset.add(Vec3_default.create(0, 0, borderOffset)), 5);
+              } else if (negativeLength === currentLength) {
+                this.GenerateBorder(vecSubOffset.sub(Vec3_default.create(0, 0, borderOffset)), 5, Vec3_default.create(0, 0.5, 0));
+                this.GenerateBorder(vecAddOffset.sub(Vec3_default.create(0, 0, borderOffset)), 5, Vec3_default.create(0, 0.5, 0));
+              } else if (length === i + 1) {
+                this.GenerateBorder(vecSubOffset.sub(Vec3_default.create(borderOffset, 0, 0)), 5, Vec3_default.create(0, 0.25, 0));
+                this.GenerateBorder(vecAddOffset.add(Vec3_default.create(borderOffset, 0, 0)), 5, Vec3_default.create(0, -0.25, 0));
+              }
+            }
+            currentLength--;
+          }
+        }
+        GenerateChunk(pos) {
+          this.GenerateTree(pos);
+        }
+        GenerateGround(pos, scale) {
+          const testGround = new SceneObject_default(`ground-${pos}`);
+          testGround.Transform.position = pos;
+          testGround.Transform.scale = Vec3_default.create(1 * scale, 0.25, 1 * scale);
+          const render = testGround.addComponent(Renderer3D_default);
+          render.Mesh = Mesh_default.Meshes["cubeD"];
+          render.Material.Specular = 1;
+          render.Material.Shininess = 1;
+          render.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(0.294, 0.18, 0.082, 1));
+        }
+        GenerateBorder(pos, scale, rot = Vec3_default.create(0, 0, 0)) {
+          const borderSphere = new SceneObject_default(`treeLeafs-${pos}`);
+          borderSphere.Transform.position = pos;
+          borderSphere.Transform.rotation = rot;
+          borderSphere.Transform.scale = Vec3_default.create(scale, scale, scale);
+          const borderSphereRender = borderSphere.addComponent(Renderer3D_default);
+          borderSphereRender.Mesh = Mesh_default.Meshes["sphere"];
+          borderSphereRender.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(0.133, 0.545, 0.133, 1));
+          const borderSphere2 = new SceneObject_default(`treeLeafs-${pos}`);
+          borderSphere2.Transform.position = Vec3_default.create(0, 0.5, 1);
+          borderSphere2.Transform.scale = Vec3_default.create(1.25, 1.25, 1.25);
+          const borderSphere2Render = borderSphere2.addComponent(Renderer3D_default);
+          borderSphere2Render.Mesh = Mesh_default.Meshes["sphere"];
+          borderSphere2Render.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(0.133, 0.545, 0.133, 1));
+          borderSphere2.setParent(borderSphere);
+        }
+        TreeHolder = null;
+        GenerateTree(pos, factor = Vec2_default.create(0, 0)) {
+          if (this.TreeHolder === null) {
+            this.TreeHolder = new SceneObject_default("TreeHolder");
+          }
+          const tree = new SceneObject_default(`treetrunck-${pos}`);
+          tree.Transform.position = pos.add(Vec3_default.create(0, 0.75, 0));
+          tree.Transform.scale = Vec3_default.create(0.25, 1.75, 0.25);
+          const treeRender = tree.addComponent(Renderer3D_default);
+          treeRender.Mesh = Mesh_default.Meshes["cubeD"];
+          treeRender.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(0.361, 0.251, 0.2, 1));
+          this.TreeHolder.addChild(tree);
+          const treeLeafs = new SceneObject_default(`treeLeafs-${pos}`);
+          treeLeafs.Transform.position = Vec3_default.create(0, 0.75, 0);
+          treeLeafs.Transform.scale = Vec3_default.create(1.75 * 3.5, 0.25 * 3.5, 1.75 * 3.5);
+          const treeLeafsRender = treeLeafs.addComponent(Renderer3D_default);
+          treeLeafsRender.Mesh = Mesh_default.Meshes["sphere"];
+          treeLeafsRender.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(0, 0.392, 0, 1));
+          treeLeafs.setParent(tree);
+        }
+      };
+      GenerateWorld_default = GenerateWorld;
+    }
+  });
+
+  // src/mydata/components/PlayerController.ts
+  var PlayerController, PlayerController_default;
+  var init_PlayerController = __esm({
+    "src/mydata/components/PlayerController.ts"() {
+      init_Keyboard();
+      init_Vec3();
+      init_SceneObject();
+      init_Time();
+      PlayerController = class extends SceneObject_default.Component {
+        WorldGenerator = null;
+        Update() {
+          this.Controls();
+          if (this.WorldGenerator && this.WorldGenerator.IsOutOfBounds(this.SceneObject.WorldPosition)) {
+            console.log("Out of Bounds - Resetting Position");
+            this.SceneObject.Transform.position = Vec3_default.create(this.WorldGenerator.SceneObject.Transform.position.X, this.SceneObject.Transform.position.Y, this.WorldGenerator.SceneObject.Transform.position.Z - 2.5);
+          }
+        }
+        normalSpeed = 2.5;
+        sensitivity = 0.475;
+        /*
+        *  for no clipping
+        */
+        Controls() {
+          let spd = this.normalSpeed;
+          if (Keyboard_default.getKey("ShiftLeft").isPressing) {
+            spd *= 2.75;
+          }
+          const camDirection = this.SceneObject.Transform.localDirectionZ().Vec3().mul(Vec3_default.create(1, 0, 1)).normalized();
+          const camPerpDirection = this.SceneObject.Transform.localDirectionX().Vec3().mul(Vec3_default.create(1, 0, 1)).normalized();
+          let positionChange = new Vec3_default({ X: 0, Y: 0, Z: 0 });
+          if (Keyboard_default.getKey("KeyW").isPressing) {
+            positionChange = positionChange.add(camDirection.scaled(spd * Time_default.DeltaTime));
+          }
+          if (Keyboard_default.getKey("KeyS").isPressing) {
+            positionChange = positionChange.add(camDirection.scaled(spd * Time_default.DeltaTime).scaled(-1));
+          }
+          if (Keyboard_default.getKey("KeyA").isPressing) {
+            positionChange = positionChange.add(camPerpDirection.scaled(spd * Time_default.DeltaTime).scaled(-1));
+          }
+          if (Keyboard_default.getKey("KeyD").isPressing) {
+            positionChange = positionChange.add(camPerpDirection.scaled(spd * Time_default.DeltaTime));
+          }
+          this.SceneObject.Transform.position = this.SceneObject.Transform.position.add(positionChange);
+          let rotationChange = new Vec3_default({ X: 0, Y: 0, Z: 0 });
+          if (Keyboard_default.getKey("ArrowUp").isPressing) {
+            if (this.SceneObject.Transform.rotation.X < 0.24) {
+              rotationChange = rotationChange.add(Vec3_default.create(this.sensitivity * 0.65 * Time_default.DeltaTime, 0, 0));
+            } else {
+              this.SceneObject.Transform.rotation = Vec3_default.create(0.24, this.SceneObject.Transform.rotation.Y, this.SceneObject.Transform.rotation.Z);
+            }
+          }
+          if (Keyboard_default.getKey("ArrowDown").isPressing) {
+            if (this.SceneObject.Transform.rotation.X > -0.24) {
+              rotationChange = rotationChange.add(Vec3_default.create(this.sensitivity * 0.65 * Time_default.DeltaTime, 0, 0).scaled(-1));
+            } else {
+              this.SceneObject.Transform.rotation = Vec3_default.create(-0.24, this.SceneObject.Transform.rotation.Y, this.SceneObject.Transform.rotation.Z);
+            }
+          }
+          if (Keyboard_default.getKey("ArrowLeft").isPressing) {
+            rotationChange = rotationChange.add(Vec3_default.create(0, this.sensitivity * Time_default.DeltaTime, 0));
+          }
+          if (Keyboard_default.getKey("ArrowRight").isPressing) {
+            rotationChange = rotationChange.add(Vec3_default.create(0, this.sensitivity * Time_default.DeltaTime, 0).scaled(-1));
+          }
+          this.SceneObject.Transform.rotation = this.SceneObject.Transform.rotation.add(rotationChange);
+        }
+      };
+      PlayerController_default = PlayerController;
+    }
+  });
+
+  // src/mydata/components/LightOrbPrefab.ts
+  var LightOrbPrefab, LightOrbPrefab_default;
+  var init_LightOrbPrefab = __esm({
+    "src/mydata/components/LightOrbPrefab.ts"() {
+      init_Vec3();
+      init_Vec4();
+      init_Mesh();
+      init_Texture();
+      init_PointLight();
+      init_Renderer3D();
+      init_SceneObject();
+      init_Transform();
+      init_Time();
+      LightOrbPrefab = class _LightOrbPrefab extends SceneObject_default.Component {
+        cubeLight = null;
+        sphere = null;
+        FixedUpdate() {
+          if (this.cubeLight) {
+            this.cubeLight.Transform.rotation = Vec3_default.create(
+              -(Time_default.TimeElapsed / 1e4) % 1,
+              Time_default.TimeElapsed / 1e4 % 1,
+              Time_default.TimeElapsed / 9e3 % 1
+            );
+          }
+          this.RotateAroundParent(this.MaxLengthFromCenter, this.Speed);
+          this.checkForParentMoveThenRotate();
+        }
+        Start() {
+          this.CreateObject();
+        }
+        CreateObject() {
+          this.sphere = new SceneObject_default("sphere");
+          const sphere1_3DRenderer = this.sphere.addComponent(Renderer3D_default);
+          sphere1_3DRenderer.Mesh = Mesh_default.Meshes["sphere"];
+          sphere1_3DRenderer.Material.Ambient = 1;
+          sphere1_3DRenderer.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(1, 1, 1, 0.1));
+          this.sphere.setParent(this.SceneObject);
+          this.cubeLight = new SceneObject_default("PointLight");
+          this.cubeLight.Transform.position = Vec3_default.create(0, 0, 0);
+          this.cubeLight.Transform.scale = Vec3_default.create(0.25, 0.25, 0.25);
+          const light2_3DRenderer = this.cubeLight.addComponent(Renderer3D_default);
+          light2_3DRenderer.Mesh = Mesh_default.Meshes["cubeD"];
+          light2_3DRenderer.Material.Ambient = 1;
+          light2_3DRenderer.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(1, 1, 1, 1));
+          const light2_POINTLIGHT = this.cubeLight.addComponent(PointLight_default);
+          light2_POINTLIGHT.Light_Coefficient = 1.8;
+          this.cubeLight.setParent(this.sphere);
+        }
+        IsRotatingParentX = false;
+        // must use X and Some Z or Y since its direction is being used for rotation
+        IsRotatingParentY = false;
+        IsRotatingParentZ = false;
+        MaxLengthFromCenter = 1;
+        Speed = 1;
+        set Color(vec3) {
+          if (this.cubeLight) {
+            const light = this.cubeLight.getComponent(PointLight_default);
+            if (light) {
+              light.Color = vec3;
+            }
+            const renderer = this.cubeLight.getComponent(Renderer3D_default);
+            if (renderer) {
+              renderer.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(vec3.X, vec3.Y, vec3.Z, 0.1));
+            }
+          }
+          if (this.sphere && this.sphere.getComponent(Renderer3D_default)) {
+            const renderer = this.sphere.getComponent(Renderer3D_default);
+            if (renderer) {
+              renderer.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(vec3.X, vec3.Y, vec3.Z, 0.1));
+            }
+          }
+        }
+        set LightIntensity(num) {
+          if (this.cubeLight) {
+            const light = this.cubeLight.getComponent(PointLight_default);
+            if (light) {
+              light.Light_Coefficient = num;
+            }
+          }
+        }
+        offsetrot = Math.random() * 1e9;
+        RotateAroundParent(maxLengthFromCenter, speed) {
+          if (this.SceneObject.Parent && (this.IsRotatingParentY || this.IsRotatingParentZ)) {
+            this.SceneObject.Transform.position = Transform_default.GetRotationMatrix(Vec3_default.create(
+              this.IsRotatingParentX ? Math.sin((Time_default.TimeElapsed + this.offsetrot) / (12e3 / speed)) * 0.15 : 0,
+              // X tilt changes over time
+              0,
+              this.IsRotatingParentZ ? Math.cos((Time_default.TimeElapsed + this.offsetrot) / (14e3 / speed)) % 1 * 0.1 : 0
+            )).transform_vec(
+              Transform_default.GetRotationMatrix(Vec3_default.create(
+                0,
+                this.IsRotatingParentY ? (Time_default.TimeElapsed + this.offsetrot) / (1e4 / speed) % 1 : 0,
+                0
+              )).transform_vec(Vec4_default.create(maxLengthFromCenter, 0, 0, 0))
+            ).Vec3();
+          }
+        }
+        toBeParent = null;
+        MoveToObjectThanMakeParentThenRotate(SceneObjectToMoveTo) {
+          this.IsRotatingParentY = false;
+          this.toBeParent = SceneObjectToMoveTo;
+        }
+        checkForParentMoveThenRotate() {
+          if (this.toBeParent) {
+            this.SceneObject.Transform.position = this.SceneObject.Transform.position.add(this.toBeParent.WorldPosition.sub(this.SceneObject.Transform.position).normalized().normalized().scaled(Time_default.DeltaTime * 4));
+            if (_LightOrbPrefab.IsWithinDistanceBetweenTwoObjects(this.SceneObject, this.toBeParent, 0.8)) {
+              this.SceneObject.Transform.position = Vec3_default.create(0, 0, 0);
+              this.Transform.scale = Vec3_default.create(0.1, 0.1, 0.1);
+              this.MaxLengthFromCenter = 0.075 + Math.random() * 0.35;
+              this.Speed = 2.5;
+              this.toBeParent.addChild(this.SceneObject);
+              this.IsRotatingParentZ = this.IsRotatingParentY = this.IsRotatingParentX = true;
+              this.toBeParent = null;
+              if (this.cubeLight) {
+                this.cubeLight.getComponent(PointLight_default)?.DisableLight();
+              }
+            }
+          }
+        }
+        static IsWithinDistanceBetweenTwoObjects(obj1, obj2, distance = 5) {
+          return obj1.WorldPosition.sub(obj2.WorldPosition).magnitude <= distance;
+        }
+      };
+      LightOrbPrefab_default = LightOrbPrefab;
+    }
+  });
+
+  // src/mydata/components/CenterArea.ts
+  var CenterArea, CenterArea_default;
+  var init_CenterArea = __esm({
+    "src/mydata/components/CenterArea.ts"() {
+      init_Vec3();
+      init_Vec4();
+      init_Mesh();
+      init_Texture();
+      init_Renderer3D();
+      init_SceneObject();
+      init_Time();
+      init_LightOrbPrefab();
+      CenterArea = class extends SceneObject_default.Component {
+        centerSphere = null;
+        sphereStart = Vec3_default.create(0, 0, 0);
+        Update() {
+          if (this.centerSphere) {
+            this.centerSphere.Transform.position = Vec3_default.create(
+              this.centerSphere.Transform.position.X,
+              this.sphereStart.Y + Math.abs(Math.cos(Time_default.TimeElapsed / 900 % (Math.PI * 2))),
+              this.centerSphere.Transform.position.Z
+            );
+          }
+        }
+        Start() {
+          this.Setup();
+        }
+        get CenterSphere() {
+          return this.centerSphere;
+        }
+        Setup() {
+          const centerCube = new SceneObject_default("CenterCube");
+          centerCube.Transform.scale = Vec3_default.create(1, 1, 1);
+          const cubeRender = centerCube.addComponent(Renderer3D_default);
+          cubeRender.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(0.502, 0.502, 0.502, 1));
+          cubeRender.Mesh = Mesh_default.Meshes["cubeD"];
+          centerCube.setParent(this.SceneObject);
+          const sign = new SceneObject_default("sign");
+          sign.Transform.position = Vec3_default.create(0, 0.1, -0.38);
+          sign.Transform.scale = Vec3_default.create(0.75, 0.75, 0.25);
+          const signRender = sign.addComponent(Renderer3D_default);
+          signRender.Mesh = Mesh_default.Meshes["cubeD"];
+          signRender.Material.Texture = Texture_default.Textures["sign"];
+          sign.setParent(centerCube);
+          this.centerSphere = new SceneObject_default("lightorb");
+          const lightorbprefab = this.centerSphere.addComponent(LightOrbPrefab_default);
+          lightorbprefab.Start();
+          lightorbprefab.LightIntensity = 1.4;
+          this.centerSphere.Transform.position = Vec3_default.create(0, 0, 0);
+          this.centerSphere.setParent(centerCube);
+          this.centerSphere.getChild(0).getChild(0).Transform.scale = Vec3_default.create(0.1, 0.1, 0.1);
+          this.sphereStart = this.centerSphere.Transform.position = Vec3_default.create(0, 1, 0);
+        }
+      };
+      CenterArea_default = CenterArea;
+    }
+  });
+
+  // src/mydata/components/GameManager.ts
+  var GameManager, GameManager_default;
+  var init_GameManager = __esm({
+    "src/mydata/components/GameManager.ts"() {
+      init_Keyboard();
+      init_Vec3();
+      init_SceneObject();
+      init_LightOrbPrefab();
+      GameManager = class _GameManager extends SceneObject_default.Component {
+        GenerateWorld = null;
+        PlayerController = null;
+        CenterArea = null;
+        currentLightObject = null;
+        Start() {
+        }
+        Update() {
+          this.CheckForNearbyLightOrb();
+          this.AddANewCurrentLightObjectIfGone();
+        }
+        AddANewCurrentLightObjectIfGone() {
+          if (this.currentLightObject === null && this.GenerateWorld) {
+            const lightSpawns = this.GenerateWorld.TreeHolder;
+            if (lightSpawns) {
+              const lightSpawn = lightSpawns.getChild(Math.floor(Math.random() * (lightSpawns.Children.length - 1)));
+              this.currentLightObject = new SceneObject_default("LightOrbPickup");
+              this.currentLightObject.Transform.scale = Vec3_default.create(1.75 * 0.5, 0.25 * 0.5, 1.75 * 0.5);
+              const lightorbC = this.currentLightObject.addComponent(LightOrbPrefab_default);
+              lightorbC.Start();
+              lightorbC.LightIntensity = 3.9;
+              lightorbC.MaxLengthFromCenter = 2;
+              const randomVec3 = Vec3_default.create(Math.random(), Math.random(), Math.random());
+              lightorbC.Color = randomVec3;
+              lightorbC.IsRotatingParentY = true;
+              lightSpawn?.addChild(this.currentLightObject);
+            }
+          }
+        }
+        CheckForNearbyLightOrb() {
+          if (this.currentLightObject && this.PlayerController && this.CenterArea && this.CenterArea.CenterSphere) {
+            if (Keyboard_default.getKey("KeyE").isPressing && _GameManager.IsWithinDistanceBetweenTwoObjects(this.currentLightObject, this.PlayerController.SceneObject, 0.8)) {
+              this.currentLightObject.Transform.position = this.currentLightObject.WorldPosition;
+              this.currentLightObject.Transform.scale = Vec3_default.create(0.1, 0.1, 0.1);
+              this.currentLightObject.setParent(this.currentLightObject.Root);
+              this.currentLightObject.getComponent(LightOrbPrefab_default)?.MoveToObjectThanMakeParentThenRotate(this.CenterArea.CenterSphere);
+              this.currentLightObject = null;
+            }
+          }
+        }
+        static IsWithinDistanceBetweenTwoObjects(obj1, obj2, distance = 5) {
+          return obj1.WorldPosition.sub(obj2.WorldPosition).magnitude <= distance;
+        }
+      };
+      GameManager_default = GameManager;
+    }
+  });
+
+  // src/mydata/LightGameScene.ts
+  var LightGameScene, LightGameScene_default;
+  var init_LightGameScene = __esm({
+    "src/mydata/LightGameScene.ts"() {
       init_Vec3();
       init_Mesh();
-      init_ShaderProgram();
       init_Texture();
       init_Renderer3D();
       init_SceneGraph();
       init_SceneObject();
-      init_Vec4();
       init_PointLight();
-      TestScene = class extends SceneGraph_default {
+      init_Camera();
+      init_GenerateWorld();
+      init_PlayerController();
+      init_CenterArea();
+      init_GameManager();
+      LightGameScene = class extends SceneGraph_default {
         constructor() {
           super();
-          const shaderD = ShaderProgram_default.ShaderPrograms["default"];
-          const shaderC = ShaderProgram_default.ShaderPrograms["coordinates"];
-          const meshC = Mesh_default.Meshes["cubeC"];
-          const meshCD = Mesh_default.Meshes["cubeD"];
-          const meshD = Mesh_default.Meshes["sphere"];
-          const cube0 = new SceneObject_default("cube0");
-          cube0.Transform.position = Vec3_default.create(-0.1, 0, 0.5);
-          cube0.Transform.scale = Vec3_default.create(0.1, 0.1, 0.1);
-          cube0.Transform.rotation = Vec3_default.create(0, 0, 0);
-          cube0.addComponent(Renderer3D_default);
-          const cube0_3DRenderer = cube0.getComponent(Renderer3D_default);
-          cube0_3DRenderer.Mesh = meshC;
-          cube0_3DRenderer.ShaderProgram = shaderC;
-          const cube2 = new SceneObject_default("cube2");
-          cube2.Transform.scale = Vec3_default.create(0.1, 0.1, 0.1);
-          cube2.Transform.position = Vec3_default.create(0, 0.15, 0.25);
-          cube2.addComponent(Renderer3D_default);
-          const cube2_3DRenderer = cube2.getComponent(Renderer3D_default);
-          cube2_3DRenderer.Mesh = meshCD;
-          cube2_3DRenderer.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(0, 1, 0, 0.1));
-          cube2_3DRenderer.ShaderProgram = shaderD;
-          const cube3 = new SceneObject_default("cube3");
-          cube3.Transform.scale = Vec3_default.create(0.1, 0.1, 0.1);
-          cube3.Transform.position = Vec3_default.create(0, 0.15, 0.5);
-          cube3.addComponent(Renderer3D_default);
-          const cube3_3DRenderer = cube3.getComponent(Renderer3D_default);
-          cube3_3DRenderer.Mesh = meshCD;
-          cube3_3DRenderer.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(0, 0, 1, 0.1));
-          cube3_3DRenderer.ShaderProgram = shaderD;
-          const cube1 = new SceneObject_default("sphere");
-          cube1.Transform.position = Vec3_default.create(0, 0, 0.5);
-          cube1.Transform.scale = Vec3_default.create(0.1, 0.1, 0.1);
-          cube1.addComponent(Renderer3D_default);
-          const cube1_3DRenderer = cube1.getComponent(Renderer3D_default);
-          cube1_3DRenderer.Mesh = meshD;
-          cube1_3DRenderer.Material.Texture = Texture_default.Textures["metal_scale"];
-          cube1_3DRenderer.ShaderProgram = shaderD;
-          const sphere1 = new SceneObject_default("sphere");
-          sphere1.Transform.position = Vec3_default.create(0, 0, 0.25);
-          sphere1.Transform.scale = Vec3_default.create(0.1, 0.1, 0.1);
-          sphere1.addComponent(Renderer3D_default);
-          const sphere1_3DRenderer = sphere1.getComponent(Renderer3D_default);
-          sphere1_3DRenderer.Mesh = meshD;
-          sphere1_3DRenderer.Material.Ambient = 1;
-          sphere1_3DRenderer.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(1, 1, 1, 0.1));
-          sphere1_3DRenderer.ShaderProgram = shaderD;
-          const light2 = new SceneObject_default("PointLight");
-          light2.Transform.position = Vec3_default.create(0, 0, 0);
-          light2.Transform.scale = Vec3_default.create(0.5, 0.5, 0.5);
-          light2.addComponent(Renderer3D_default);
-          const light2_3DRenderer = light2.getComponent(Renderer3D_default);
-          light2_3DRenderer.Mesh = meshD;
-          light2_3DRenderer.Material.Ambient = 1;
-          light2_3DRenderer.Material.Texture = Texture_default.COLOR_TEXTURE_DATA(Vec4_default.create(1, 1, 1, 1));
-          light2_3DRenderer.ShaderProgram = shaderD;
-          light2.addComponent(PointLight_default);
-          light2.setParent(sphere1);
+          const theMoon = new SceneObject_default("moon");
+          theMoon.Transform.scale = Vec3_default.create(3, 3, 3);
+          theMoon.Transform.position = Vec3_default.create(20, 40, 20);
+          const light = theMoon.addComponent(PointLight_default);
+          light.Color = Vec3_default.create(0.784, 0.839, 1);
+          light.Light_Coefficient = 0.025;
+          const theMoonRenderer = theMoon.addComponent(Renderer3D_default);
+          theMoonRenderer.Mesh = Mesh_default.Meshes["sphere"];
+          theMoonRenderer.Material.Texture = Texture_default.Textures["2k_moon"];
+          const worldGenerator = new SceneObject_default("WorldGenerator");
+          const gW = worldGenerator.addComponent(GenerateWorld_default);
+          const centerArea = new SceneObject_default("centerArea");
+          centerArea.Transform.position = Vec3_default.create(0, 0.5, 0);
+          const centerAreanC = centerArea.addComponent(CenterArea_default);
+          centerArea.setParent(worldGenerator);
+          const player = new SceneObject_default("Player");
+          player.Transform.position = Vec3_default.create(0, 0.75, -2.5);
+          this.Camera = player.addComponent(Camera_default);
+          const playercomponent = player.addComponent(PlayerController_default);
+          playercomponent.WorldGenerator = worldGenerator.getComponent(GenerateWorld_default);
+          const gameManagerObject = new SceneObject_default("GameManager");
+          const gameManager = gameManagerObject.addComponent(GameManager_default);
+          gameManager.GenerateWorld = gW;
+          gameManager.PlayerController = playercomponent;
+          gameManager.CenterArea = centerAreanC;
         }
       };
-      TestScene_default = TestScene;
+      LightGameScene_default = LightGameScene;
     }
   });
 
@@ -3055,7 +3534,7 @@
       init_Mesh();
       init_Texture();
       init_Editor();
-      init_TestScene();
+      init_LightGameScene();
       Engine3D = class _Engine3D {
         static NAME = "CVE Engine";
         static instance;
@@ -3073,7 +3552,7 @@
           await ShaderProgram_default.LoadShaderPrograms();
           await Mesh_default.LoadMeshes();
           await Texture_default.LoadTextures();
-          Editor_default.LoadSceneGraph(TestScene_default);
+          Editor_default.LoadSceneGraph(LightGameScene_default);
           Renderer_default.render();
         }
         constructor(canvas) {
